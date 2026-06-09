@@ -1,1 +1,1 @@
-console.log('Hello from Electron 😵‍💫');
+onsole.log('Hello from Electron 😵‍💫');
