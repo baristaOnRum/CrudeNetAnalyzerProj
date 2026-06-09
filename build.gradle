@@ -23,6 +23,7 @@ dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
 	runtimeOnly 'org.xerial:sqlite-jdbc'
+	implementation 'org.hibernate.orm:hibernate-community-dialects'
 	implementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'com.h2database:h2'
@@ -31,4 +32,10 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform() // Obligatorio para que Gradle reconozca y ejecute JUnit 5
+}
+
+tasks.register('startServer') {
+	group = 'application'
+	description = 'Starts the web server and outputs to console'
+	dependsOn 'bootRun'
 }
