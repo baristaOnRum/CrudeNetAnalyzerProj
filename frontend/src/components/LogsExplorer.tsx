@@ -17,25 +17,25 @@ interface LogLine {
 
 // Preloaded set of static initial logs
 const INITIAL_LOG_DB: LogLine[] = [
-  { id: '1', timestamp: '05:18:50.112', severity: 'SSL', message: 'TLS 1.3 handshake sequence completed successfully on port 443.' },
-  { id: '2', timestamp: '05:18:52.422', severity: 'INFO', message: 'Heartbeat signal broadcasted to global telemetry authority: 200 OK.' },
-  { id: '3', timestamp: '05:18:53.901', severity: 'WARN', message: 'Slight latency spike (122ms) detected on local edge autonomous node.' },
-  { id: '4', timestamp: '05:18:57.835', severity: 'INFO', message: 'Node auth token refreshed. Virtual adapter secure session valid.' },
-  { id: '5', timestamp: '05:19:01.430', severity: 'SSL', message: 'Cipher sequence initialized: SHA256 cryptographic verification optimal.' },
-  { id: '6', timestamp: '05:19:03.361', severity: 'ERROR', message: 'Dropping packet ID PKT-814032 - validation signature mismatch.' },
-  { id: '7', timestamp: '05:19:05.336', severity: 'INFO', message: 'Operator sarah.connor logged into admin node console.' },
-  { id: '8', timestamp: '05:19:07.120', severity: 'WARN', message: 'Trace path hop count (14) exceeds standard SLA parameter (12).' }
+  { id: '1', timestamp: '05:18:50.112', severity: 'SSL', message: 'Secuencia de handshake TLS 1.3 completada con éxito en el puerto 443.' },
+  { id: '2', timestamp: '05:18:52.422', severity: 'INFO', message: 'Señal de latido transmitida al servicio de telemetría: 200 OK.' },
+  { id: '3', timestamp: '05:18:53.901', severity: 'WARN', message: 'Ligero pico de latencia (122ms) detectado en la conexión local.' },
+  { id: '4', timestamp: '05:18:57.835', severity: 'INFO', message: 'Token de autenticación de cliente renovado. Sesión segura de adaptador virtual válida.' },
+  { id: '5', timestamp: '05:19:01.430', severity: 'SSL', message: 'Secuencia de cifrado inicializada: verificación criptográfica SHA256 óptima.' },
+  { id: '6', timestamp: '05:19:03.361', severity: 'ERROR', message: 'Descartando paquete ID PKT-814032 - discrepancia en firma de validación.' },
+  { id: '7', timestamp: '05:19:05.336', severity: 'INFO', message: 'La operadora sarah.connor inició sesión en la consola del sistema.' },
+  { id: '8', timestamp: '05:19:07.120', severity: 'WARN', message: 'El conteo de saltos de traza (14) excede el parámetro estándar SLA (12).' }
 ];
 
 const LOG_MESSAGES = [
-  'Refreshed virtual routing tables for IPv4 packet forwarding.',
-  'Encrypted socket tunnel established with peer node AS-EAST-09.',
-  'TCP checksum validation successful for incoming segment.',
-  'Rate limiter active: 1.2k packets/sec buffered successfully.',
-  'SSL alert: client connection closed gracefully by peer endpoint.',
-  'Anomalous traffic burst detected on port 80 - analyzing signatures...',
-  'Injected test ICMP ping sequence into gateway router interface.',
-  'SOC2 compliance check complete: security policies optimal.'
+  'Tablas de enrutamiento virtual actualizadas para el reenvío de paquetes IPv4.',
+  'Túnel de socket cifrado establecido con el extremo peer AS-EAST-09.',
+  'Validación de suma de verificación TCP exitosa para el segmento entrante.',
+  'Limitador de velocidad activo: 1.2k paquetes/seg almacenados en búfer con éxito.',
+  'Alerta SSL: conexión de cliente cerrada de forma segura por el extremo peer.',
+  'Ráfaga de tráfico anómala detectada en el puerto 80 - analizando firmas...',
+  'Secuencia de ping ICMP de prueba inyectada en la interfaz del enrutador de puerta de enlace.',
+  'Verificación de cumplimiento SOC2 completada: políticas de seguridad óptimas.'
 ];
 
 interface LogsExplorerProps {
@@ -120,10 +120,10 @@ export const LogsExplorer: React.FC<LogsExplorerProps> = ({ searchQuery }) => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2.5">
             <span className="material-symbols-outlined text-primary text-3xl">receipt_long</span>
-            Logs Explorer
+            Explorador de Registros
           </h1>
           <p className="text-sm text-[#64748B] mt-1">
-            Real-time visual node security audit, validation heartbeats, and packet warning telemetry feeds.
+            Auditoría visual de seguridad del servidor en tiempo real, latidos de validación y flujos de telemetría de advertencia de paquetes.
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export const LogsExplorer: React.FC<LogsExplorerProps> = ({ searchQuery }) => {
             onClick={handleClear}
             className="px-4 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold text-slate-700 hover:bg-[#F1F5F9] cursor-pointer transition-colors"
           >
-            Clear Telemetry logs
+            Limpiar registros
           </button>
           <button
             onClick={() => setIsStreaming((prev) => !prev)}
@@ -143,7 +143,7 @@ export const LogsExplorer: React.FC<LogsExplorerProps> = ({ searchQuery }) => {
                 : 'bg-green-600 hover:bg-green-700 font-bold'
             }`}
           >
-            {isStreaming ? 'Pause Stream' : 'Resume live Logs stream'}
+            {isStreaming ? 'Pausar transmisión' : 'Reanudar transmisión en vivo'}
           </button>
         </div>
       </div>
@@ -159,7 +159,7 @@ export const LogsExplorer: React.FC<LogsExplorerProps> = ({ searchQuery }) => {
               <span className="w-2.5 h-2.5 bg-green-500 rounded-full" />
             </div>
             <span className="text-[#64748B] text-[11px] font-sans font-bold tracking-wider ml-4">
-              SECURE CONNECT TERMINAL OVERLAY
+              PANEL DE TERMINAL DE CONEXIÓN SEGURA
             </span>
           </div>
 
@@ -174,7 +174,7 @@ export const LogsExplorer: React.FC<LogsExplorerProps> = ({ searchQuery }) => {
                     : 'text-[#64748B] bg-[#0b0f19] hover:text-white'
                 }`}
               >
-                {sev}
+                {sev === 'ALL' ? 'TODOS' : sev}
               </button>
             ))}
           </div>
@@ -184,7 +184,7 @@ export const LogsExplorer: React.FC<LogsExplorerProps> = ({ searchQuery }) => {
         <div className="flex-1 p-5 overflow-y-auto space-y-2 text-slate-300 font-mono text-xs leading-normal bg-[#0F172A] content-start">
           {filteredLogs.length === 0 ? (
             <div className="h-full flex items-center justify-center text-center text-slate-500 italic font-sans select-none">
-              No matching diagnostic log heartbeats tracked in buffer matching severities bounds.
+              No se encontraron registros de diagnóstico en el búfer que coincidan con la severidad seleccionada.
             </div>
           ) : (
             filteredLogs.map((log) => (

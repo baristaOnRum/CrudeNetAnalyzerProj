@@ -11,7 +11,7 @@ const INITIAL_OPERATORS: Operator[] = [
   {
     avatarInitials: 'JD',
     name: 'Julian Draxler',
-    email: 'j.draxler@netwatch.pro',
+    email: 'j.draxler@pendiente.com',
     role: 'ADMIN',
     status: 'Active',
     lastLogin: '2023-10-24 14:22:01'
@@ -19,7 +19,7 @@ const INITIAL_OPERATORS: Operator[] = [
   {
     avatarInitials: 'SC',
     name: 'Sarah Connor',
-    email: 's.connor@netwatch.pro',
+    email: 's.connor@pendiente.com',
     role: 'ANALYST',
     status: 'Active',
     lastLogin: '2023-10-24 11:05:45'
@@ -27,7 +27,7 @@ const INITIAL_OPERATORS: Operator[] = [
   {
     avatarInitials: 'MK',
     name: 'Marcus Knight',
-    email: 'm.knight@netwatch.pro',
+    email: 'm.knight@pendiente.com',
     role: 'VIEWER',
     status: 'Suspended',
     lastLogin: '2023-09-12 09:12:33'
@@ -35,7 +35,7 @@ const INITIAL_OPERATORS: Operator[] = [
   {
     avatarInitials: 'EL',
     name: 'Elena Loomis',
-    email: 'e.loomis@netwatch.pro',
+    email: 'e.loomis@pendiente.com',
     role: 'ANALYST',
     status: 'Active',
     lastLogin: '2023-10-23 22:50:11'
@@ -60,7 +60,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
   const handleAddOperatorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newEmail) {
-      alert('Please fill out Name and Email fields.');
+      alert('Por favor complete los campos de Nombre y Correo.');
       return;
     }
 
@@ -107,7 +107,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
 
   // Delete user from directory list
   const handleDeleteOperator = (email: string) => {
-    if (window.confirm(`Are you sure you want to remove operator "${email}" from NetWatch access?`)) {
+    if (window.confirm(`¿Está seguro de que desea eliminar al operador "${email}" del acceso al sistema?`)) {
       setOperators((prev) => prev.filter((op) => op.email !== email));
     }
   };
@@ -125,7 +125,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
       <div className="fixed top-0 right-0 left-64 z-50 bg-[#ffb703]/10 border-b border-[#ffb703]/20 px-6 py-2 flex items-center justify-center gap-2 backdrop-blur-md select-none">
         <span className="material-symbols-outlined text-[#ffb703] text-[18px]">lock</span>
         <span className="font-mono text-[10px] font-bold text-[#271900] tracking-wider uppercase">
-          RESTRICTED ACCESS: LEVEL 4 PERMISSIONS REQUIRED
+          ACCESO RESTRINGIDO: SE REQUIEREN PERMISOS DE NIVEL 4
         </span>
       </div>
 
@@ -137,7 +137,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
             Gestionar Usuarios
           </h1>
           <p className="text-sm text-[#42474e] mt-1">
-            System-wide user access control and node authorization management profiles.
+            Control de acceso de usuarios en todo el sistema y perfiles de gestión de autorización.
           </p>
         </div>
 
@@ -147,7 +147,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
           className="bg-primary hover:bg-opacity-95 text-white px-5 py-2.5 rounded-xl font-bold text-xs tracking-wide flex items-center gap-2 shadow-md shadow-primary/20 hover:shadow-lg transition-all cursor-pointer group"
         >
           <span className="material-symbols-outlined group-hover:rotate-90 transition-transform text-sm font-bold">add</span>
-          Add New User
+          Agregar Nuevo Usuario
         </button>
       </div>
 
@@ -157,13 +157,13 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
         {/* Card Header title info */}
         <div className="px-6 py-4 border-b border-slate-100 bg-[#f8f9ff] flex justify-between items-center select-none">
           <h2 className="font-sans font-bold text-[#191c1e] text-base">
-            Operator Directory
+            Directorio de Operadores
           </h2>
           <div className="flex items-center gap-2">
-            <button className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer" title="Settings filters">
+            <button className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer" title="Filtros de configuración">
               <span className="material-symbols-outlined text-[19px]">filter_list</span>
             </button>
-            <button className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer" title="Settings more options">
+            <button className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer" title="Más opciones de configuración">
               <span className="material-symbols-outlined text-[19px]">more_vert</span>
             </button>
           </div>
@@ -174,18 +174,18 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#eff4ff]/60 border-b border-[#cbd5e1] select-none text-[10px] font-mono tracking-wider font-bold text-slate-500 uppercase">
-                <th className="px-6 py-3.5 pl-6">Operator Name</th>
-                <th className="px-6 py-3.5">Role</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Last Login</th>
-                <th className="px-6 py-3.5 text-right pr-6">Actions</th>
+                <th className="px-6 py-3.5 pl-6">Nombre del Operador</th>
+                <th className="px-6 py-3.5">Rol</th>
+                <th className="px-6 py-3.5">Estado</th>
+                <th className="px-6 py-3.5">Último Acceso</th>
+                <th className="px-6 py-3.5 text-right pr-6">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans text-sm font-semibold text-[#191c1e] bg-white">
               {filteredOperators.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-slate-400 italic">
-                    No matching operators found for filter query "{searchQuery}"
+                    No se encontraron operadores para el filtro de búsqueda "{searchQuery}"
                   </td>
                 </tr>
               ) : (
@@ -221,7 +221,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
                       <button
                         onClick={() => handleToggleStatus(op.email)}
                         className="flex items-center gap-2 select-none text-left cursor-pointer hover:bg-slate-50 px-2 py-0.5 rounded-md transition-colors"
-                        title="Click to toggle suspension status"
+                        title="Haga clic para alternar el estado de suspensión"
                       >
                         <span className={`w-2 h-2 rounded-full ${
                           op.status === 'Active' 
@@ -229,7 +229,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
                             : 'bg-red-500'
                         }`} />
                         <span className={`text-[12px] font-medium ${op.status === 'Active' ? 'text-secondary font-bold' : 'text-red-500'}`}>
-                          {op.status}
+                          {op.status === 'Active' ? 'Activo' : 'Suspendido'}
                         </span>
                       </button>
                     </td>
@@ -241,14 +241,14 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
                         <button 
                           onClick={() => handleToggleStatus(op.email)}
                           className="p-1 hover:text-primary rounded hover:bg-slate-50 duration-100 transition-colors cursor-pointer"
-                          title="Toggle Suspended status"
+                          title="Alternar estado de suspensión"
                         >
                           <span className="material-symbols-outlined text-[17px]">no_accounts</span>
                         </button>
                         <button 
                           onClick={() => handleDeleteOperator(op.email)}
                           className="p-1 hover:text-red-500 rounded hover:bg-slate-50 duration-100 transition-colors cursor-pointer"
-                          title="Delete operator profile"
+                          title="Eliminar perfil de operador"
                         >
                           <span className="material-symbols-outlined text-[17px]">delete_forever</span>
                         </button>
@@ -263,13 +263,13 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
 
         {/* Table footer representation details */}
         <div className="px-6 py-4 bg-[#eff4ff]/35 text-xs text-slate-400 border-t border-[#cbd5e1] font-sans flex justify-between items-center select-none">
-          <span>Showing 1-{filteredOperators.length} of {operators.length} operators</span>
+          <span>Mostrando 1-{filteredOperators.length} de {operators.length} operadores</span>
           <div className="flex gap-2 font-semibold">
             <button className="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg hover:bg-slate-50 transition-colors cursor-not-allowed text-slate-300" disabled>
-              Previous
+              Anterior
             </button>
             <button className="px-3.5 py-1.5 border border-slate-300 bg-white rounded-lg hover:bg-slate-50 transition-colors cursor-not-allowed text-slate-300" disabled>
-              Next
+              Siguiente
             </button>
           </div>
         </div>
@@ -279,10 +279,10 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
       <footer className="mt-8 flex flex-col md:flex-row justify-between items-center gap-4 py-4 border-t border-slate-200 select-none">
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="material-symbols-outlined text-[16px]">verified_user</span>
-          All actions on this page are logged under Global Audit Policy #112.
+          Todas las acciones en esta página se registran bajo la Política de Auditoría Global #112.
         </div>
         <div className="font-mono text-[11px] text-primary/60">
-          System Sync: 100% | Node: 0xF22A | Latency: 12ms
+          Sincronización del Sistema: 100% | ID: 0xF22A | Latencia: 12ms
         </div>
       </footer>
 
@@ -293,7 +293,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4 select-none">
               <h2 className="text-base font-bold text-slate-900 leading-none flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-md font-extrabold">person_add</span>
-                Add New User operator
+                Agregar Nuevo Operador
               </h2>
               <button 
                 onClick={() => setShowAddModal(false)}
@@ -307,11 +307,11 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
               {/* Operator Name */}
               <div className="space-y-1">
                 <label className="text-[10px] font-mono font-bold text-slate-500 uppercase block tracking-wider">
-                  Full operator Name
+                  Nombre Completo del Operador
                 </label>
                 <input 
                   type="text"
-                  placeholder="e.g. Julian Draxler"
+                  placeholder="ej. Julian Draxler"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -322,11 +322,11 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
               {/* Email Address */}
               <div className="space-y-1">
                 <label className="text-[10px] font-mono font-bold text-slate-500 uppercase block tracking-wider">
-                  Secure Identity Email
+                  Correo Electrónico de Identificación
                 </label>
                 <input 
                   type="email"
-                  placeholder="e.g. j.draxler@netwatch.pro"
+                  placeholder="ej. j.draxler@pendiente.com"
                   required
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
@@ -337,34 +337,34 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
               {/* Role Select */}
               <div className="space-y-1 select-none">
                 <label className="text-[10px] font-mono font-bold text-slate-500 uppercase block tracking-wider">
-                  Security Access Role
+                  Rol de Acceso de Seguridad
                 </label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as any)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans"
                 >
-                  <option value="ADMIN">ADMIN (Level 4 Root)</option>
-                  <option value="ANALYST">ANALYST (Level 3 write)</option>
-                  <option value="VIEWER">VIEWER (Level 1 read-only)</option>
+                  <option value="ADMIN">ADMINISTRADOR (Nivel 4 Raíz)</option>
+                  <option value="ANALYST">ANALISTA (Nivel 3 Escritura)</option>
+                  <option value="VIEWER">OBSERVADOR (Nivel 1 Lectura)</option>
                 </select>
               </div>
 
               {/* Status selectors */}
               <div className="space-y-1 select-none">
                 <label className="text-[10px] font-mono font-bold text-slate-500 uppercase block tracking-wider">
-                  Status Initial state
+                  Estado Inicial
                 </label>
                 <div className="flex gap-4 pt-1">
                   <label className="flex items-center gap-2 text-xs text-slate-800 font-bold cursor-pointer">
-                    <input 
+                     <input 
                       type="radio"
                       name="status_radio"
                       checked={newStatus === 'Active'}
                       onChange={() => setNewStatus('Active')}
                       className="text-[#00b4d8] focus:ring-[#00b4d8]"
                     />
-                    Active uplink
+                    Conexión Activa
                   </label>
                   <label className="flex items-center gap-2 text-xs text-slate-800 font-bold cursor-pointer">
                     <input 
@@ -374,7 +374,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
                       onChange={() => setNewStatus('Suspended')}
                       className="text-red-500 focus:ring-red-500"
                     />
-                    Suspended access
+                    Acceso Suspendido
                   </label>
                 </div>
               </div>
@@ -386,13 +386,13 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery }) => {
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 border border-slate-250 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button 
                   type="submit"
                   className="px-5 py-2 bg-primary hover:bg-opacity-95 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                 >
-                  Submit Profile
+                  Enviar Perfil
                 </button>
               </div>
             </form>

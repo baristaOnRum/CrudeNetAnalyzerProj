@@ -9,14 +9,14 @@ import { AppView } from '../types';
 interface SidebarProps {
   currentView: AppView;
   onViewChange: (view: AppView) => void;
-  currentNodeId: string;
+  currentSourceId: string;
   onLogout: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   onViewChange,
-  currentNodeId,
+  currentSourceId,
   onLogout
 }) => {
   return (
@@ -25,10 +25,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-6">
         <h1 className="text-xl font-bold text-primary font-sans flex items-center gap-2">
           <span className="material-symbols-outlined text-primary text-xl">router</span>
-          NetWatch Pro
+          Nombre Pendiente
         </h1>
         <p className="font-mono text-[10px] uppercase font-bold text-[#64748B] mt-1 tracking-wider">
-          Node: {currentNodeId || 'Admin Node 01'}
+          Interfaz: {currentSourceId || 'Canal del Sistema'}
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <span className="material-symbols-outlined text-[20px]">settings</span>
-          <span className="text-sm">Settings</span>
+          <span className="text-sm">Configuración</span>
         </button>
       </nav>
 
@@ -120,18 +120,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="material-symbols-outlined">person</span>
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-xs font-semibold truncate text-[#1E293B]">Admin</p>
+            <p className="text-xs font-semibold truncate text-[#1E293B]">Administrador</p>
             <p className="text-[9px] font-mono font-bold tracking-wider text-[#64748B] uppercase">
-              LVL 4 ACCESS
+              ACCESO NIVEL 4
             </p>
           </div>
           <button 
             onClick={() => {
-              if (window.confirm("Are you sure you want to log out and close node uplink?")) {
+              if (window.confirm("¿Está seguro de que desea cerrar la sesión y cerrar la conexión?")) {
                 onLogout();
               }
             }}
-            title="Disconnect node uplink"
+            title="Desconectar conexión"
             className="p-1 hover:text-[#4F46E5] rounded-md transition-colors cursor-pointer text-[#64748B]"
           >
             <span className="material-symbols-outlined text-md">logout</span>

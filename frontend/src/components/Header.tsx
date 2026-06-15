@@ -27,19 +27,19 @@ export const Header: React.FC<HeaderProps> = ({
   const getHeaderTitle = () => {
     switch (currentView) {
       case 'dashboard':
-        return 'Network Analyzer';
+        return 'Análisis de Red';
       case 'reports':
-        return 'Network Analyzer';
+        return 'Generar Reportes';
       case 'logs':
-        return 'Logs Explorer';
+        return 'Explorador de Registros';
       case 'users':
-        return 'Network Analyzer';
+        return 'Gestionar Usuarios';
       case 'packets':
-        return 'Packet Management';
+        return 'Administrar Paquetes';
       case 'settings':
-        return 'System Configuration';
+        return 'Configuración del Sistema';
       default:
-        return 'NetWatch Node';
+        return 'Analizador "Nombre Pendiente"';
     }
   };
 
@@ -48,14 +48,14 @@ export const Header: React.FC<HeaderProps> = ({
     if (currentView === 'reports') {
       return (
         <span className="text-[10px] font-mono text-primary font-bold tracking-widest bg-primary-container px-2.5 py-1 rounded-full uppercase border border-[#E2E8F0]">
-          Reports Console
+          Consola de Reportes
         </span>
       );
     }
     return (
       <span className="flex items-center gap-1.5 text-xs text-primary font-medium bg-[#F0FDF4] text-[#166534] px-2.5 py-1 rounded-full border border-[#D1FAE5]">
         <span className="w-2 h-2 rounded-full bg-[#166534] glow-pulse" />
-        System Operational
+        Sistema Operativo
       </span>
     );
   };
@@ -64,15 +64,15 @@ export const Header: React.FC<HeaderProps> = ({
   const getSearchPlaceholder = () => {
     switch (currentView) {
       case 'packets':
-        return 'Search Packets...';
+        return 'Buscar Paquetes...';
       case 'reports':
-        return 'Search sessions...';
+        return 'Buscar sesiones...';
       case 'users':
-        return 'Search system resources...';
+        return 'Buscar recursos de sistema...';
       case 'logs':
-        return 'Search diagnostic logs...';
+        return 'Buscar registros de diagnóstico...';
       default:
-        return 'Search resources, files, or tasks...';
+        return 'Buscar recursos, archivos o tareas...';
     }
   };
 
@@ -107,62 +107,46 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3 relative select-none">
           {/* Hardware CPU Metrics Button */}
           <button 
+            id="btn_cpu_metrics"
             onClick={() => {
               setShowSystemInfo(!showSystemInfo);
             }}
-            title="Interactive Node Telemetry Dashboard"
-            className="material-symbols-outlined text-[#64748B] hover:text-primary transition-all p-1.5 hover:bg-[#F1F5F9] rounded-lg cursor-pointer text-[21px]"
+            title="Panel de Telemetría de Hardware"
+            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm"
           >
-            memory
+            <span className="material-symbols-outlined text-[16px]">memory</span>
+            <span>Uso de Hardware</span>
           </button>
 
-          {/* Speed Toggle simulation */}
+          {/* Dev-board Quick Status logs toggle - Changed to a real button with icon and text */}
           <button 
-            onClick={() => {
-              if (onSpeedToggle) {
-                onSpeedToggle();
-              } else {
-                alert(`Interactive simulation speed configured to: ${speedMode === 'normal' ? 'FAST' : 'NORMAL'}`);
-              }
-            }}
-            title={`Simulation Cycle Speed (Current: ${speedMode.toUpperCase()})`}
-            className={`material-symbols-outlined transition-all p-1.5 hover:bg-[#F1F5F9] rounded-lg cursor-pointer text-[21px] ${
-              speedMode === 'turbo' 
-                ? 'text-red-500 animate-pulse' 
-                : speedMode === 'fast'
-                  ? 'text-amber-500'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
-            }`}
+            id="btn_details_connection"
+            onClick={() => alert("Chequeo de diagnóstico: Niveles de encriptación óptimos, AES-256 habilitado, 0 pérdidas de integridad detectadas.")}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm"
+            title="Detalles de Conexión del Sistema"
           >
-            speed
-          </button>
-
-          {/* Dev-board Quick Status logs toggle */}
-          <button 
-            onClick={() => alert("Uplink diagnostics check: Encryption levels optimal, AES-256 enabled, 0 integrity drops detected since heartbeat.")}
-            className="material-symbols-outlined text-[#64748B] hover:text-primary transition-all p-1.5 hover:bg-[#F1F5F9] rounded-lg cursor-pointer text-[21px]"
-            title="System Handshake Details"
-          >
-            developer_board
+            <span className="material-symbols-outlined text-[16px]">developer_board</span>
+            <span>Detalles de Conexión</span>
           </button>
 
           {/* Quick Micro interactive stats overlay panel */}
           {showSystemInfo && (
-            <div className="absolute right-0 top-12 bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 w-72 z-50 text-xs text-[#1E293B] animate-[bounceIn_0.2s_ease-out]">
+            <div id="panel_hardware_status" className="absolute right-0 top-12 bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 w-72 z-50 text-xs text-[#1E293B] animate-[bounceIn_0.2s_ease-out]">
               <div className="flex justify-between items-center pb-2 border-b border-[#F1F5F9]">
-                <span className="font-bold text-[#0F172A]">Virtual Hardware State</span>
+                <span className="font-bold text-[#0F172A]">Estado de Hardware Virtual</span>
                 <button 
+                  id="btn_close_system_info"
                   onClick={() => setShowSystemInfo(false)} 
                   className="text-[#64748B] hover:text-red-500 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">close</span>
                 </button>
               </div>
-              <div className="space-y-3 mt-3">
+              <div className="space-y-3 mt-3 font-sans">
                 <div>
                   <div className="flex justify-between text-[11px] text-[#64748B] font-mono mb-1">
-                    <span>VIRTUAL ADAPTER CORES</span>
-                    <span>8 / 8 ALIVE</span>
+                    <span>Uso de procesador</span>
+                    <span>62%</span>
                   </div>
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full bg-green-500 w-[62%]" />
@@ -170,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div>
                   <div className="flex justify-between text-[11px] text-[#64748B] font-mono mb-1">
-                    <span>MEMORY COMMIT INDEX</span>
+                    <span>Uso de memoria</span>
                     <span>4.18 GB / 16 GB</span>
                   </div>
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -179,17 +163,13 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
                 <div>
                   <div className="flex justify-between text-[11px] text-[#64748B] font-mono mb-1">
-                    <span>THROUGHPUT RATIO</span>
-                    <span>{speedMode === 'turbo' ? '12.4k pkts/s' : speedMode === 'fast' ? '4.8k pkts/s' : '1.2k p/s'}</span>
+                    <span>Tasa de paquetes</span>
+                    <span>{speedMode === 'turbo' ? '12.4k paq/s' : speedMode === 'fast' ? '4.8k paq/s' : '1.2k paq/s'}</span>
                   </div>
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full bg-amber-500 w-[45%]" />
                   </div>
                 </div>
-              </div>
-              <div className="mt-4 pt-2 border-t border-[#F1F5F9] flex justify-between items-center text-[10px] text-[#64748B] font-mono">
-                <span>ENCRYPTION ENGINE: AES-GCM</span>
-                <span className="text-green-600 font-bold">STABLE</span>
               </div>
             </div>
           )}

@@ -11,7 +11,7 @@ const HISTORICAL_SESSIONS: NetworkSession[] = [
   {
     id: 'NW-8842-X',
     timestamp: '2023-11-20 14:32:05',
-    nodeId: 'US-WEST-04',
+    sourceId: 'US-WEST-04',
     duration: '02:14:55',
     status: 'Completed',
     totalPackets: '1.28M',
@@ -23,7 +23,7 @@ const HISTORICAL_SESSIONS: NetworkSession[] = [
   {
     id: 'NW-8839-A',
     timestamp: '2023-11-20 09:15:22',
-    nodeId: 'EU-CENT-01',
+    sourceId: 'EU-CENT-01',
     duration: '08:45:10',
     status: 'Completed',
     totalPackets: '5.14M',
@@ -35,7 +35,7 @@ const HISTORICAL_SESSIONS: NetworkSession[] = [
   {
     id: 'NW-8791-Z',
     timestamp: '2023-11-19 22:00:00',
-    nodeId: 'AS-EAST-09',
+    sourceId: 'AS-EAST-09',
     duration: '00:30:00',
     status: 'Archived',
     totalPackets: '0.45M',
@@ -47,7 +47,7 @@ const HISTORICAL_SESSIONS: NetworkSession[] = [
   {
     id: 'NW-8755-B',
     timestamp: '2023-11-19 18:45:12',
-    nodeId: 'US-EAST-02',
+    sourceId: 'US-EAST-02',
     duration: '04:12:33',
     status: 'Completed',
     totalPackets: '3.12M',
@@ -59,7 +59,7 @@ const HISTORICAL_SESSIONS: NetworkSession[] = [
   {
     id: 'NW-8720-Y',
     timestamp: '2023-11-19 12:10:05',
-    nodeId: 'BR-SA-01',
+    sourceId: 'BR-SA-01',
     duration: '01:55:20',
     status: 'Failed',
     totalPackets: '0.89M',
@@ -96,15 +96,15 @@ export const ReportsConsole: React.FC = () => {
 
     setTimeout(() => {
       setGeneratingReport(false);
-      setGenerationOutput(`Successfully compiled ${reportType.toUpperCase()} file output for packet trace ${activeSession.id}. PDF formatted report downloaded!`);
+      setGenerationOutput(`Se ha compilado con éxito el informe ${reportType.toUpperCase()} para el rastreo de paquetes ${activeSession.id}. ¡Reporte en formato PDF descargado!`);
       
       // Real file download trigger
-      const mockBlobText = `NetWatch Pro ${reportType.toUpperCase()} Security Audit Log Report\nSession ID: ${activeSession.id}\nDate: ${activeSession.timestamp}\nDuration: ${activeSession.duration}\nNode: ${activeSession.nodeId}\nPrimary proto check: ${activeSession.primaryProtocol} (${activeSession.primaryProtocolPercent}%)`;
+      const mockBlobText = `Reporte de Auditoría de Seguridad ${reportType.toUpperCase()} - Nombre Pendiente\nID de Sesión: ${activeSession.id}\nFecha: ${activeSession.timestamp}\nDuración: ${activeSession.duration}\nOrigen: ${activeSession.sourceId}\nVerificación de protocolo principal: ${activeSession.primaryProtocol} (${activeSession.primaryProtocolPercent}%)`;
       const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(mockBlobText);
       
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', `NetWatch_Report_${activeSession.id}_${reportType}.txt`);
+      linkElement.setAttribute('download', `NombrePendiente_Reporte_${activeSession.id}_${reportType}.txt`);
       document.body.appendChild(linkElement);
       linkElement.click();
       document.body.removeChild(linkElement);
@@ -131,7 +131,7 @@ export const ReportsConsole: React.FC = () => {
         <div>
           <span className="bg-[#F1F5F9] text-[#1E293B] border border-[#E2E8F0] px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider flex items-center gap-2 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-            SYSTEM READY
+            SISTEMA LISTO
           </span>
         </div>
       </div>
@@ -145,13 +145,13 @@ export const ReportsConsole: React.FC = () => {
               Historial de Sesiones
             </h3>
             <div className="flex gap-2">
-              <button className="p-1.5 hover:bg-[#F1F5F9] hover:text-[#0F172A] rounded-lg transition-colors cursor-pointer text-[#64748B]" title="Filter list">
+              <button className="p-1.5 hover:bg-[#F1F5F9] hover:text-[#0F172A] rounded-lg transition-colors cursor-pointer text-[#64748B]" title="Filtrar lista">
                 <span className="material-symbols-outlined text-[19px]">filter_list</span>
               </button>
               <button 
                 onClick={() => setSelectedSessionId(null)}
                 className="p-1.5 hover:bg-[#F1F5F9] hover:text-[#0F172A] rounded-lg transition-colors cursor-pointer text-[#64748B]"
-                title="Clears selection"
+                title="Limpiar selección"
               >
                 <span className="material-symbols-outlined text-[19px]">refresh</span>
               </button>
@@ -163,11 +163,11 @@ export const ReportsConsole: React.FC = () => {
             <table className="w-full border-collapse font-sans text-left">
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] select-none text-[10px] font-mono tracking-wider font-bold text-[#64748B] uppercase">
-                  <th className="p-4 pl-6">Session ID</th>
-                  <th className="p-4">Timestamp</th>
-                  <th className="p-4">Node ID</th>
-                  <th className="p-4">Duration</th>
-                  <th className="p-4 pr-6 text-right">Status</th>
+                  <th className="p-4 pl-6">ID de Sesión</th>
+                  <th className="p-4">Marca de Tiempo</th>
+                  <th className="p-4">ID de Origen</th>
+                  <th className="p-4">Duración</th>
+                  <th className="p-4 pr-6 text-right">Estado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9] font-sans text-[13px] font-semibold text-[#1E293B]">
@@ -188,7 +188,7 @@ export const ReportsConsole: React.FC = () => {
                       {ses.timestamp}
                     </td>
                     <td className="p-4 font-mono text-[12px] text-[#64748B]">
-                      {ses.nodeId}
+                      {ses.sourceId}
                     </td>
                     <td className="p-4 text-[#64748B] font-mono">
                       {ses.duration}
@@ -202,7 +202,7 @@ export const ReportsConsole: React.FC = () => {
                               ? 'bg-amber-500' 
                               : 'bg-red-500'
                         }`} />
-                        {ses.status}
+                        {ses.status === 'Completed' ? 'Completado' : ses.status === 'Archived' ? 'Archivado' : 'Fallido'}
                       </span>
                     </td>
                   </tr>
@@ -227,7 +227,7 @@ export const ReportsConsole: React.FC = () => {
               {/* Type checkboxes list */}
               <div>
                 <label className="text-[10px] font-sans tracking-wider font-extrabold text-[#64748B] block mb-2.5 uppercase">
-                  Report Type
+                  Tipo de Reporte
                 </label>
                 <div className="space-y-2">
                   
@@ -245,8 +245,8 @@ export const ReportsConsole: React.FC = () => {
                       className="text-primary focus:ring-primary rounded-full"
                     />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-[#0F172A]">Summary</p>
-                      <p className="text-[10px] text-[#64748B]">High-level KPIs and trends</p>
+                      <p className="text-xs font-bold text-[#0F172A]">Resumen</p>
+                      <p className="text-[10px] text-[#64748B]">KPIs clave y tendencias de alto nivel</p>
                     </div>
                   </label>
 
@@ -264,8 +264,8 @@ export const ReportsConsole: React.FC = () => {
                       className="text-primary focus:ring-primary rounded-full"
                     />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-[#0F172A]">Full Technical</p>
-                      <p className="text-[10px] text-[#64748B]">Deep packet & latency analysis</p>
+                      <p className="text-xs font-bold text-[#0F172A]">Técnico Completo</p>
+                      <p className="text-[10px] text-[#64748B]">Análisis profundo de paquetes y latencia</p>
                     </div>
                   </label>
 
@@ -283,8 +283,8 @@ export const ReportsConsole: React.FC = () => {
                       className="text-primary focus:ring-primary rounded-full"
                     />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-[#0F172A]">Security Audit</p>
-                      <p className="text-[10px] text-[#64748B]">Threat detection & CVE mapping</p>
+                      <p className="text-xs font-bold text-[#0F172A]">Auditoría de Seguridad</p>
+                      <p className="text-[10px] text-[#64748B]">Detección de amenazas y mapeo de CVE</p>
                     </div>
                   </label>
 
@@ -294,11 +294,11 @@ export const ReportsConsole: React.FC = () => {
               {/* Format Select */}
               <div>
                 <label className="text-[10px] font-sans tracking-wider font-extrabold text-[#64748B] block mb-2 uppercase">
-                  Output Format
+                  Formato de Salida
                 </label>
                 <div className="flex gap-2">
                   <button className="flex-1 py-2 bg-[#F1F5F9] border border-primary rounded-lg font-mono text-xs text-primary font-bold shadow-sm cursor-pointer hover:bg-opacity-80 transition-colors">
-                    PDF FORMAT
+                    FORMATO PDF
                   </button>
                 </div>
               </div>
@@ -318,22 +318,22 @@ export const ReportsConsole: React.FC = () => {
                       {activeSession.id}
                     </span>
                     <span className="bg-[#10B981]/10 text-[#10B981] text-[9px] font-sans font-bold px-2 py-0.5 rounded border border-[#10B981]/20 uppercase">
-                      Ready for Export
+                      Listo para Exportar
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-[9px] font-sans font-bold text-[#64748B] uppercase">Total Packets</p>
+                      <p className="text-[9px] font-sans font-bold text-[#64748B] uppercase">Total de Paquetes</p>
                       <p className="text-base font-extrabold text-[#0F172A] font-mono mt-0.5">{activeSession.totalPackets}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-sans font-bold text-[#64748B] uppercase">Peak Throughput</p>
+                      <p className="text-[9px] font-sans font-bold text-[#64748B] uppercase">Rendimiento Pico</p>
                       <p className="text-base font-extrabold text-[#0F172A] font-mono mt-0.5">{activeSession.peakThroughput}</p>
                     </div>
 
                     <div className="col-span-2 mt-2">
-                      <p className="text-[9px] font-sans font-bold text-[#64748B] uppercase mb-1">Primary Protocol Ratio</p>
+                      <p className="text-[9px] font-sans font-bold text-[#64748B] uppercase mb-1">Ratio de Protocolo Principal</p>
                       <div className="flex items-center gap-3">
                         <div className="flex-1 bg-[#F1F5F9] h-2 rounded-full overflow-hidden border border-[#E2E8F0]/30 animate-pulse">
                           <div 
@@ -353,7 +353,7 @@ export const ReportsConsole: React.FC = () => {
                 <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
                   <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5">warning</span>
                   <p className="text-[11px] text-amber-800 leading-normal font-sans font-semibold">
-                    {activeSession.anomaliesCount} network anomalies detected in session trace scan. Review logs before finalizing Security reports file.
+                    Se detectaron {activeSession.anomaliesCount} anomalías de red en el escaneo de traza de sesión. Revise los registros antes de finalizar los reportes de Seguridad.
                   </p>
                 </div>
               </div>
@@ -379,12 +379,12 @@ export const ReportsConsole: React.FC = () => {
             {generatingReport ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
-                COMPILING FILES REPORT...
+                COMPILANDO REPORTE DE ARCHIVOS...
               </>
             ) : (
               <>
                 <span className="material-symbols-outlined text-[20px]">bolt</span>
-                GENERATE REPORT
+                GENERAR REPORTE
               </>
             )}
           </button>
@@ -406,7 +406,7 @@ export const ReportsConsole: React.FC = () => {
             <span className="material-symbols-outlined">cloud_download</span>
           </div>
           <div>
-            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Storage Used</p>
+            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Almacenamiento Usado</p>
             <p className="text-base font-bold text-[#0F172A]">14.2 GB / 50 GB</p>
           </div>
         </div>
@@ -416,8 +416,8 @@ export const ReportsConsole: React.FC = () => {
             <span className="material-symbols-outlined">history</span>
           </div>
           <div>
-            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Last Export</p>
-            <p className="text-base font-bold text-[#0F172A]">15 min ago</p>
+            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Última Exportación</p>
+            <p className="text-base font-bold text-[#0F172A]">Hace 15 min</p>
           </div>
         </div>
 
@@ -426,8 +426,8 @@ export const ReportsConsole: React.FC = () => {
             <span className="material-symbols-outlined">shield</span>
           </div>
           <div>
-            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Compliance</p>
-            <p className="text-base font-bold text-[#0F172A]">SOC2 Certified</p>
+            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Cumplimiento</p>
+            <p className="text-base font-bold text-[#0F172A]">Certificado SOC2</p>
           </div>
         </div>
 

@@ -114,7 +114,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
   // Handle quick mock data export (CSV/JSON)
   const handleExport = (type: 'CSV' | 'JSON') => {
     setExportingState('exporting');
-    setExportMessage(`Assembling session streams. Preparing system ${type} output...`);
+    setExportMessage(`Ensamblando transmisiones de sesión. Preparando salida ${type} del sistema...`);
 
     setTimeout(() => {
       setExportingState('idle');
@@ -124,12 +124,12 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
       
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', `NetWatch_SessionPackets_${new Date().toISOString().split('T')[0]}.${type.toLowerCase()}`);
+      linkElement.setAttribute('download', `NombrePendiente_PaquetesSesion_${new Date().toISOString().split('T')[0]}.${type.toLowerCase()}`);
       document.body.appendChild(linkElement);
       linkElement.click();
       document.body.removeChild(linkElement);
 
-      setExportMessage(`Uplink Complete! File "NetWatch_SessionPackets.${type.toLowerCase()}" saved successfully.`);
+      setExportMessage(`¡Carga finalizada! Archivo "NombrePendiente_PaquetesSesion.${type.toLowerCase()}" guardado con éxito.`);
       setTimeout(() => setExportMessage(null), 3500);
     }, 1200);
   };
@@ -160,7 +160,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
             Administrar Paquetes
           </h1>
           <p className="text-sm text-[#64748B] mt-1 font-sans">
-            Real-time interface packet extraction, injection, and dynamic buffer monitor.
+            Extracción de paquetes de interfaz en tiempo real, inyección y monitor de búfer dinámico.
           </p>
         </div>
 
@@ -175,7 +175,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
           {exportingState === 'exporting' && (
             <div className="bg-[#F1F5F9] text-[#0F172A] text-xs px-3.5 py-2 rounded-lg border border-[#E2E8F0] font-mono shadow-sm flex items-center gap-2">
               <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-              Preparing download...
+              Preparando descarga...
             </div>
           )}
         </div>
@@ -188,11 +188,11 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
         <div className="p-4 border-b border-[#E2E8F0] flex flex-col md:flex-row gap-3 justify-between items-center bg-white">
           <div className="flex items-center gap-4">
             <h3 className="font-sans font-bold text-base text-[#0F172A]">
-              Active Network Packets
+              Paquetes de Red Activos
             </h3>
             <span className="text-[10px] uppercase tracking-wider font-mono px-2.5 py-1 rounded-full bg-[#EEF2FF] text-[#4F46E5] border border-[#E2E8F0] font-bold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-[#4F46E5] rounded-full glow-pulse" />
-              Monitoring all interfaces | {speedMode === 'turbo' ? '12.4k' : speedMode === 'fast' ? '4.8k' : '1.2k'} pkts/sec
+              Monitoreando todas las interfaces | {speedMode === 'turbo' ? '12.4k' : speedMode === 'fast' ? '4.8k' : '1.2k'} paq/seg
             </span>
           </div>
 
@@ -200,7 +200,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
             {/* Exports controls */}
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-sans font-medium text-[#64748B] tracking-wide uppercase">
-                Export:
+                Exportar:
               </span>
               <button
                 onClick={() => handleExport('CSV')}
@@ -227,7 +227,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
                   : 'bg-green-600 text-white hover:bg-green-700 animate-pulse'
               }`}
             >
-              {isPlaying ? 'Pause Stream' : 'Resume Stream'}
+              {isPlaying ? 'Pausar Transmisión' : 'Reanudar Transmisión'}
             </button>
           </div>
         </div>
@@ -237,18 +237,18 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery,
           <table className="w-full text-left border-collapse font-mono">
             <thead>
               <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] select-none text-[10px] tracking-wider font-sans font-bold text-[#64748B] uppercase">
-                <th className="p-4 pl-6">Timestamp</th>
-                <th className="p-4">Source IP</th>
-                <th className="p-4">Destination IP</th>
-                <th className="p-4">Protocol</th>
-                <th className="p-4 text-right pr-6">Length (B)</th>
+                <th className="p-4 pl-6">Marca de Tiempo</th>
+                <th className="p-4">IP de Origen</th>
+                <th className="p-4">IP de Destino</th>
+                <th className="p-4">Protocolo</th>
+                <th className="p-4 text-right pr-6">Longitud (B)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] font-mono text-[13px] font-medium text-[#1E293B]">
               {filteredPackets.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-[#64748B] font-sans italic">
-                    No active packets matches criteria "{searchQuery}"
+                    Ningún paquete activo coincide con el criterio "{searchQuery}"
                   </td>
                 </tr>
               ) : (

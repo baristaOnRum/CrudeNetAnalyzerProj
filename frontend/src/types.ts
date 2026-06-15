@@ -19,7 +19,7 @@ export interface Packet {
 export interface NetworkSession {
   id: string;
   timestamp: string;
-  nodeId: string;
+  sourceId: string;
   duration: string;
   status: 'Completed' | 'Archived' | 'Failed';
   totalPackets: string;

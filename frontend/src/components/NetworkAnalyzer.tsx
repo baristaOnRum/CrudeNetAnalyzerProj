@@ -125,7 +125,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
             Análisis de Red
           </h1>
           <p className="text-sm text-[#64748B] mt-1">
-            Core diagnostic packet metrics: throughput, capacity, routing anomalies, and diagnostics.
+            Métricas fundamentales de diagnóstico de paquetes: rendimiento, capacidad, anomalías de enrutamiento y diagnóstico.
           </p>
         </div>
       </div>
@@ -134,7 +134,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
       <section className="select-none">
         <h2 className="text-base font-bold text-[#0F172A] mb-3 flex items-center gap-2">
           <span className="material-symbols-outlined text-sm">dashboard</span>
-          Packet Type Overview
+          Resumen de Tipos de Paquetes
         </h2>
         
         <div className="grid grid-cols-12 gap-6">
@@ -143,7 +143,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">
-                  TCP Traffic
+                  Tráfico TCP
                 </p>
                 <h3 className="text-2xl font-bold text-primary mt-1 font-sans">
                   {tcpRate} GB/s
@@ -173,7 +173,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">
-                  UDP Traffic
+                  Tráfico UDP
                 </p>
                 <h3 className="text-2xl font-bold text-secondary mt-1 font-sans">
                   {udpRate} GB/s
@@ -203,7 +203,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">
-                  ICMP Traffic
+                  Tráfico ICMP
                 </p>
                 <h3 className="text-2xl font-bold text-[#F59E0B] mt-1 font-sans">
                   0.4 GB/s
@@ -211,7 +211,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
               </div>
               <span className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold bg-slate-100 px-2.5 py-1 rounded-full border border-slate-250">
                 <span className="material-symbols-outlined text-[13px]">horizontal_rule</span>
-                stable
+                estable
               </span>
             </div>
             {/* SVG ICMP pulse line graph */}
@@ -234,18 +234,18 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
         <div className="p-5 border-b border-[#E2E8F0] bg-white flex justify-between items-center select-none">
           <div className="flex items-center gap-3">
             <h3 className="font-bold text-base text-[#0F172A]">
-              Protocol Distribution Analysis
+              Análisis de Distribución de Protocolos
             </h3>
             <span className="text-[10px] font-mono tracking-widest bg-[#F1F5F9]/50 border border-[#E2E8F0] px-2.5 py-0.5 rounded text-[#64748B] font-bold uppercase">
-              Real-time breakdown
+              Desglose en tiempo real
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-[#F1F5F9]/50 text-[#64748B] hover:text-[#0F172A] rounded-lg cursor-pointer transition-colors" title="Filter list">
+            <button className="p-2 hover:bg-[#F1F5F9]/50 text-[#64748B] hover:text-[#0F172A] rounded-lg cursor-pointer transition-colors" title="Filtrar lista">
               <span className="material-symbols-outlined text-[18px]">filter_list</span>
             </button>
-            <button className="p-2 hover:bg-[#F1F5F9]/50 text-[#64748B] hover:text-[#0F172A] rounded-lg cursor-pointer transition-colors" title="More options">
+            <button className="p-2 hover:bg-[#F1F5F9]/50 text-[#64748B] hover:text-[#0F172A] rounded-lg cursor-pointer transition-colors" title="Más opciones">
               <span className="material-symbols-outlined text-[18px]">more_vert</span>
             </button>
           </div>
@@ -278,10 +278,10 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <span className="text-4xl font-extrabold text-primary">100%</span>
               <span className="text-[10px] font-mono tracking-wider font-bold text-[#64748B] uppercase">
-                Network Capacity
+                Capacidad de Red
               </span>
               <p className="text-xs font-semibold text-[#0F172A] mt-1">
-                Active Throughput
+                Rendimiento Activo
               </p>
             </div>
           </div>
@@ -294,11 +294,11 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
               <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] flex items-start gap-3">
                 <span className="w-3.5 h-3.5 rounded-full bg-primary mt-1 flex-shrink-0" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-[#0F172A]">TCP Traffic</span>
-                  <span className="text-xs text-[#64748B]">Transmission Control</span>
+                  <span className="text-sm font-bold text-[#0F172A]">Tráfico TCP</span>
+                  <span className="text-xs text-[#64748B]">Control de Transmisión</span>
                   <span className="text-xl font-bold text-primary mt-1">70.2%</span>
                   <p className="text-xs text-[#64748B] mt-2 font-sans font-medium">
-                    Primary payload carrier for application layer data and web traffic.
+                    Portador primario de carga útil para datos de la capa de aplicación y tráfico web.
                   </p>
                 </div>
               </div>
@@ -307,11 +307,11 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
               <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] flex items-start gap-3">
                 <span className="w-3.5 h-3.5 rounded-full bg-[#0EA5E9] mt-1 flex-shrink-0" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-[#0F172A]">UDP Traffic</span>
-                  <span className="text-xs text-[#64748B]">User Datagram</span>
+                  <span className="text-sm font-bold text-[#0F172A]">Tráfico UDP</span>
+                  <span className="text-xs text-[#64748B]">Datagrama de Usuario</span>
                   <span className="text-xl font-bold text-[#0EA5E9] mt-1">19.5%</span>
                   <p className="text-xs text-[#64748B] mt-2 font-sans font-medium">
-                    High-speed streaming, voice calls, and real-time multiplayer protocols.
+                    Transmisión de alta velocidad, llamadas de voz y protocolos multijugador en tiempo real.
                   </p>
                 </div>
               </div>
@@ -321,12 +321,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
                 <span className="w-3.5 h-3.5 rounded-full bg-[#F59E0B] mt-1 flex-shrink-0 animate-pulse" />
                 <div className="flex flex-col flex-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-[#0F172A]">ICMP & Others</span>
+                    <span className="text-sm font-bold text-[#0F172A]">ICMP y Otros</span>
                     <span className="text-lg font-bold text-[#F59E0B]">10.3%</span>
                   </div>
-                  <span className="text-xs text-[#64748B]">Control & Management</span>
+                  <span className="text-xs text-[#64748B]">Control y Gestión</span>
                   <p className="text-xs text-[#64748B] mt-2 font-sans font-medium">
-                    System diagnostic pings, routing advertisements, and low-level network signaling.
+                    Pings de diagnóstico del sistema, anuncios de enrutamiento y señalización de red de bajo nivel.
                   </p>
                 </div>
               </div>
@@ -340,15 +340,15 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-[10px] font-mono uppercase tracking-wider text-[#64748B]">
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" /> 
-              82.4 TB Processed
+              82.4 TB Procesados
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary" /> 
-              22.1 TB Processed
+              22.1 TB Procesados
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" /> 
-              11.8 TB Processed
+              11.8 TB Procesados
             </div>
           </div>
         </div>
@@ -358,7 +358,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
       <section className="space-y-4">
         <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2 select-none">
           <span className="material-symbols-outlined text-sm">construction</span>
-          Active Network Diagnostics
+          Diagnósticos de Red Activos
         </h2>
 
         <div className="grid grid-cols-12 gap-6">
@@ -367,13 +367,13 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
           <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-4 select-none">
               <span className="material-symbols-outlined text-primary text-xl">router</span>
-              <h3 className="font-bold text-sm text-[#0F172A]">Connectivity Test (Ping)</h3>
+              <h3 className="font-bold text-sm text-[#0F172A]">Prueba de Conectividad (Ping)</h3>
             </div>
 
             <form onSubmit={handleStartPing} className="flex gap-2 mb-4">
               <input
                 type="text"
-                placeholder="Enter target IP or Hostname (e.g. 8.8.8.8)"
+                placeholder="Ingrese IP o Hostname de destino (ej. 8.8.8.8)"
                 value={pingTarget}
                 onChange={(e) => setPingTarget(e.target.value)}
                 disabled={pingStatus === 'testing'}
@@ -384,15 +384,15 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
                 disabled={pingStatus === 'testing'}
                 className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer font-sans"
               >
-                {pingStatus === 'testing' ? 'Testing' : 'Start Test'}
+                {pingStatus === 'testing' ? 'Probando' : 'Iniciar Prueba'}
               </button>
             </form>
 
             <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4">
               <div className="flex justify-between text-[11px] font-mono text-[#64748B] mb-3 pb-1 border-b border-[#E2E8F0] select-none">
-                <span>Real-time status</span>
+                <span>Estado en tiempo real</span>
                 <span className={`font-bold uppercase ${pingStatus === 'testing' ? 'text-[#F59E0B]' : 'text-[#4F46E5]'}`}>
-                  {pingStatus === 'testing' ? 'Testing...' : pingStatus === 'complete' ? 'COMPLETE' : 'READY'}
+                  {pingStatus === 'testing' ? 'PROBANDO...' : pingStatus === 'complete' ? 'COMPLETADO' : 'LISTO'}
                 </span>
               </div>
 
@@ -406,18 +406,18 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
                   ))}
                 </div>
               ) : (
-                <div className="bg-white border border-dashed border-[#E2E8F0] rounded-lg p-3 h-[90px] flex items-center justify-center font-sans text-xs italic text-[#64748B] text-center mb-3Edge">
-                  Awaiting test trace. Standard replies will map packet loss ratio in real-time.
+                <div className="bg-white border border-dashed border-[#E2E8F0] rounded-lg p-3 h-[90px] flex items-center justify-center font-sans text-xs italic text-[#64748B] text-center mb-3">
+                  Esperando traza de prueba. Las respuestas estándar mapearán la pérdida de paquetes en tiempo real.
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white border border-[#E2E8F0] p-3 rounded-lg text-center shadow-sm">
-                  <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Avg Latency</p>
+                  <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Latencia Promedio</p>
                   <p className="text-lg font-bold text-primary mt-0.5 font-mono">{pingStats.avgLatency}</p>
                 </div>
                 <div className="bg-white border border-[#E2E8F0] p-3 rounded-lg text-center shadow-sm">
-                  <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Packet Loss</p>
+                  <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Pérdida de Paquetes</p>
                   <p className="text-lg font-bold text-[#F59E0B] mt-0.5 font-mono">{pingStats.loss}</p>
                 </div>
               </div>
@@ -428,13 +428,13 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
           <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-4 select-none">
               <span className="material-symbols-outlined text-primary text-xl">alt_route</span>
-              <h3 className="font-bold text-sm text-[#0F172A]">Route Trace</h3>
+              <h3 className="font-bold text-sm text-[#0F172A]">Traza de Ruta</h3>
             </div>
 
             <form onSubmit={handleStartTrace} className="flex gap-2 mb-4">
               <input
                 type="text"
-                placeholder="Enter destination hostname (e.g. google.com)"
+                placeholder="Ingrese hostname de destino (ej. google.com)"
                 value={traceTarget}
                 onChange={(e) => setTraceTarget(e.target.value)}
                 disabled={traceStatus === 'tracing'}
@@ -445,7 +445,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
                 disabled={traceStatus === 'tracing'}
                 className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer font-sans"
               >
-                {traceStatus === 'tracing' ? 'Tracing' : 'Trace Path'}
+                {traceStatus === 'tracing' ? 'Rastreando' : 'Trazar Ruta'}
               </button>
             </form>
 
@@ -476,7 +476,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
               ) : (
                 <div className="h-full flex items-center justify-center text-center">
                   <p className="text-xs text-[#64748B] italic">
-                    Path visualization hops list will appear here after diagnostic initiation...
+                    La lista de saltos de visualización de la ruta aparecerá aquí después de iniciar el diagnóstico...
                   </p>
                 </div>
               )}

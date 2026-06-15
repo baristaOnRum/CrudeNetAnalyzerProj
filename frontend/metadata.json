@@ -1,6 +1,6 @@
 {
-  "name": "NetWatch Pro",
-  "description": "Advanced Network Packet Analyzer and Node Security Management Console",
+  "name": "Nombre Pendiente",
+  "description": "Analizador avanzado de paquetes de red y consola de gestión de seguridad del sistema",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

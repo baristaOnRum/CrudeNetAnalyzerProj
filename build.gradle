@@ -34,8 +34,92 @@ tasks.named('test') {
 	useJUnitPlatform() // Obligatorio para que Gradle reconozca y ejecute JUnit 5
 }
 
+tasks.register('stopServer') {
+	group = 'application'
+	description = 'Stops any running server process on port 8080'
+	doLast {
+		def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+		if (isWindows) {
+			try {
+				def process = Runtime.getRuntime().exec("cmd /c netstat -ano")
+				def reader = new BufferedReader(new InputStreamReader(process.getInputStream()))
+				def line
+				def pids = [] as Set
+				while ((line = reader.readLine()) != null) {
+					if (line.contains(":8080") && line.contains("LISTENING")) {
+						def parts = line.trim().split("\\s+")
+						if (parts.length >= 5) {
+							def pid = parts[4]
+							if (pid && pid.isInteger() && pid != "0") {
+								pids.add(pid)
+							}
+						}
+					}
+				}
+				reader.close()
+				process.waitFor()
+				
+				pids.each { pid ->
+					println "Stopping existing server process with PID: ${pid}"
+					Runtime.getRuntime().exec("taskkill /F /PID ${pid}").waitFor()
+				}
+			} catch (Exception e) {
+				println "No existing server process found or error stopping: ${e.getMessage()}"
+			}
+		} else {
+			try {
+				def process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "lsof -t -i:8080"})
+				def reader = new BufferedReader(new InputStreamReader(process.getInputStream()))
+				def pid = reader.readLine()?.trim()
+				reader.close()
+				process.waitFor()
+				if (pid) {
+					println "Stopping existing server process with PID: ${pid}"
+					Runtime.getRuntime().exec("kill -9 ${pid}").waitFor()
+				}
+			} catch (Exception e) {
+				println "No existing server process found or error stopping: ${e.getMessage()}"
+			}
+		}
+	}
+}
+
+tasks.named('bootRun') {
+	dependsOn 'stopServer'
+}
+
 tasks.register('startServer') {
 	group = 'application'
 	description = 'Starts the web server and outputs to console'
 	dependsOn 'bootRun'
 }
+
+tasks.register('npmBuild', Exec) {
+	group = 'build'
+	description = 'Compiles the frontend application using npm'
+	workingDir 'frontend'
+	
+	def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+	if (isWindows) {
+		commandLine 'cmd', '/c', 'npm run build'
+	} else {
+		commandLine 'npm', 'run', 'build'
+	}
+}
+
+tasks.register('cleanStatic', Delete) {
+	group = 'build'
+	description = 'Cleans the Spring Boot static resources folder'
+	delete layout.projectDirectory.dir("src/main/resources/static")
+}
+
+tasks.register('copyFrontend', Copy) {
+	group = 'build'
+	description = 'Copies the compiled frontend assets to Spring Boot static resources'
+	dependsOn 'npmBuild', 'cleanStatic'
+	
+	from 'frontend/dist'
+	into layout.projectDirectory.dir("src/main/resources/static")
+}
+
+

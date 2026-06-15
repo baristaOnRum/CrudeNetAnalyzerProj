@@ -16,13 +16,13 @@ import { LogsExplorer } from './components/LogsExplorer';
 import { SettingsPanel } from './components/SettingsPanel';
 
 export default function App() {
-  const [view, setView] = useState<AppView>('uplink');
-  const [currentNodeId, setCurrentNodeId] = useState('NODE-01-ALPHA');
+  const [view, setView] = useState<AppView>('packets');
+  const [currentSourceId, setCurrentSourceId] = useState('SYS-01-LOCAL');
   const [searchQuery, setSearchQuery] = useState('');
   const [speedMode, setSpeedMode] = useState<'normal' | 'fast' | 'turbo'>('normal');
 
-  const handleLoginSuccess = (nodeId: string) => {
-    setCurrentNodeId(nodeId);
+  const handleLoginSuccess = (sourceId: string) => {
+    setCurrentSourceId(sourceId);
     // After logging in, redirect to packets which represents Page 1 live streaming packets
     setView('packets');
   };
@@ -76,7 +76,7 @@ export default function App() {
       <Sidebar
         currentView={view}
         onViewChange={setView}
-        currentNodeId={currentNodeId}
+        currentSourceId={currentSourceId}
         onLogout={handleLogout}
       />
 
