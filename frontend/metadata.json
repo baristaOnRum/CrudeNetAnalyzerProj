@@ -1,0 +1,6 @@
+{
+  "name": "NetWatch Pro",
+  "description": "Advanced Network Packet Analyzer and Node Security Management Console",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
