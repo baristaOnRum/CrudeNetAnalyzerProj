@@ -10,8 +10,8 @@ public class AppUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "usuario", nullable = false, unique = true)
-    private String usuario;
+    @Column(name = "nombre", nullable = false, unique = true)
+    private String nombre;
 
     @Column(name = "pass_hasheada", nullable = false)
     private String passHasheada;
@@ -22,8 +22,8 @@ public class AppUser {
     public AppUser() {
     }
 
-    public AppUser(String usuario, String passHasheada, String rol) {
-        this.usuario = usuario;
+    public AppUser(String nombre, String passHasheada, String rol) {
+        this.nombre = nombre;
         this.passHasheada = passHasheada;
         this.rol = rol;
     }
@@ -36,12 +36,12 @@ public class AppUser {
         this.id = id;
     }
 
-    public String getUsuario() {
-        return usuario;
+    public String getNombre() {
+        return nombre;
     }
 
-    public void setUsuario(String usuario) {
-        this.usuario = usuario;
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
     }
 
     public String getPassHasheada() {

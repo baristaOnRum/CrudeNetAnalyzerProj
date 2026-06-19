@@ -27,7 +27,7 @@ class AuthServiceTest {
     void testLogin_Success() {
         Credentials creds = new Credentials("admin", "admin123");
         AppUser mockUser = new AppUser("admin", "admin123", "ADMIN");
-        when(userRepository.findByUsuario("admin")).thenReturn(Optional.of(mockUser));
+        when(userRepository.findByNombre("admin")).thenReturn(Optional.of(mockUser));
 
         AuthToken token = authService.login(creds);
         
@@ -41,7 +41,7 @@ class AuthServiceTest {
     void testLogin_InvalidCredentials() {
         Credentials creds = new Credentials("admin", "wrongpassword");
         AppUser mockUser = new AppUser("admin", "admin123", "ADMIN");
-        when(userRepository.findByUsuario("admin")).thenReturn(Optional.of(mockUser));
+        when(userRepository.findByNombre("admin")).thenReturn(Optional.of(mockUser));
         
         Exception exception = assertThrows(RuntimeException.class, () -> {
             authService.login(creds);
@@ -55,7 +55,7 @@ class AuthServiceTest {
         // First login to get a valid token
         Credentials creds = new Credentials("user", "user123");
         AppUser mockUser = new AppUser("user", "user123", "USER");
-        when(userRepository.findByUsuario("user")).thenReturn(Optional.of(mockUser));
+        when(userRepository.findByNombre("user")).thenReturn(Optional.of(mockUser));
 
         AuthToken token = authService.login(creds);
         

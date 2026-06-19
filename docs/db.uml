@@ -1,0 +1,48 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class usuarios {
+  + id
+  + nombre
+  + pass_hasheada
+  + rol
+}
+
+class analisis_red {
+  + id
+  + fecha_ejecucion
+  + usuario_ejecutado
+  + duracion_analisis
+}
+
+class paquetes {
+  + id
+  + id_analisis
+  + tipo_paquete
+  + contenidos
+  + fuente
+  + destino
+  + respuesta
+  + tiempo_respuesta
+}
+
+class registro_eventos {
+  + id_sesion
+  + id_usuario
+  + nombre_evento
+  + detalle_cambio
+}
+
+class configuraciones {
+  + id_configuracion
+  + nombre_configuracion
+  + valores_disponibles
+  + valor_seleccionado
+}
+
+usuarios "1" -- "0..*" analisis_red : ejecuta >
+usuarios "1" -- "0..*" registro_eventos : genera >
+usuarios "1" -- "0..*" configuraciones : posee >
+analisis_red "1" -- "0..*" paquetes : contiene >
+
+@enduml

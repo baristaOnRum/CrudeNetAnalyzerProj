@@ -30,7 +30,7 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Credentials cannot be null");
         }
 
-        Optional<AppUser> userOpt = userRepository.findByUsuario(credentials.getUsername());
+        Optional<AppUser> userOpt = userRepository.findByNombre(credentials.getUsername());
 
         if (userOpt.isPresent()) {
             AppUser user = userOpt.get();
