@@ -6,4 +6,5 @@ import ve.student.netAnalyzer.dto.DbConnectionDto;
 public interface ConfigurationService {
     ConfigParameter modifyParameter(String key, String value);
     void manageDatabaseConnection(DbConnectionDto dbConfig);
+    DbConnectionDto getCurrentDatabaseConnection();
 }

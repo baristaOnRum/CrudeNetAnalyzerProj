@@ -16,11 +16,13 @@ class AuthServiceTest {
 
     private AuthServiceImpl authService;
     private UserRepository userRepository;
+    private ve.student.netAnalyzer.service.EventService eventService;
 
     @BeforeEach
     void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
-        authService = new AuthServiceImpl(userRepository);
+        eventService = Mockito.mock(ve.student.netAnalyzer.service.EventService.class);
+        authService = new AuthServiceImpl(userRepository, eventService);
     }
 
     @Test

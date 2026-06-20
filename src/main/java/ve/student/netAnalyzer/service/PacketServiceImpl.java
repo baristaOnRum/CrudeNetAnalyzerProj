@@ -2,10 +2,12 @@ package ve.student.netAnalyzer.service;
 
 import org.springframework.stereotype.Service;
 import ve.student.netAnalyzer.model.Packet;
+import ve.student.netAnalyzer.model.AnalisisRed;
 import ve.student.netAnalyzer.model.ExportFormat;
 import ve.student.netAnalyzer.dto.PacketDto;
 import ve.student.netAnalyzer.dto.PacketFilter;
 import ve.student.netAnalyzer.repository.PacketRepository;
+import ve.student.netAnalyzer.repository.AnalisisRedRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,9 +16,11 @@ import java.util.stream.Collectors;
 public class PacketServiceImpl implements PacketService {
 
     private final PacketRepository repository;
+    private final AnalisisRedRepository analisisRedRepository;
 
-    public PacketServiceImpl(PacketRepository repository) {
+    public PacketServiceImpl(PacketRepository repository, AnalisisRedRepository analisisRedRepository) {
         this.repository = repository;
+        this.analisisRedRepository = analisisRedRepository;
     }
 
     @Override
@@ -28,6 +32,12 @@ public class PacketServiceImpl implements PacketService {
         packet.setDestino(packetData.getDestino());
         packet.setRespuesta(packetData.getRespuesta());
         packet.setTiempoRespuesta(packetData.getTiempoRespuesta());
+        
+        if (packetData.getIdAnalisis() != null) {
+            AnalisisRed analisis = analisisRedRepository.findById(packetData.getIdAnalisis()).orElse(null);
+            packet.setAnalisisRed(analisis);
+        }
+        
         return repository.save(packet);
     }
 

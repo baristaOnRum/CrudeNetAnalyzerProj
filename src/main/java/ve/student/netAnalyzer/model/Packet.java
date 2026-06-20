@@ -28,6 +28,10 @@ public class Packet {
     @Column(name = "tiempo_respuesta")
     private Integer tiempoRespuesta;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_analisis", referencedColumnName = "id")
+    private AnalisisRed analisisRed;
+
     public Packet() {}
 
     public Long getId() { return id; }
@@ -44,4 +48,6 @@ public class Packet {
     public void setRespuesta(String respuesta) { this.respuesta = respuesta; }
     public Integer getTiempoRespuesta() { return tiempoRespuesta; }
     public void setTiempoRespuesta(Integer tiempoRespuesta) { this.tiempoRespuesta = tiempoRespuesta; }
+    public AnalisisRed getAnalisisRed() { return analisisRed; }
+    public void setAnalisisRed(AnalisisRed analisisRed) { this.analisisRed = analisisRed; }
 }

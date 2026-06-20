@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.4.0'
-	id 'io.spring.dependency-management' version '1.1.6'
+	id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 've.student'
@@ -30,13 +30,43 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+tasks.register('unitTest', Test) {
+	group = 'verification'
+	description = 'Runs the unit tests.'
+	useJUnitPlatform()
+	
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	
+	exclude '**/*FunctionalTest.class'
+	exclude '**/*IntegrationTest.class'
+	reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/unitTest")
+	reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/unitTest")
+}
+
+tasks.register('functionalTest', Test) {
+	group = 'verification'
+	description = 'Runs the functional and integration tests.'
+	useJUnitPlatform()
+	
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	
+	include '**/*FunctionalTest.class'
+	include '**/*IntegrationTest.class'
+	reports.html.outputLocation = layout.buildDirectory.dir("reports/tests/functionalTest")
+	reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/functionalTest")
+}
+
 tasks.named('test') {
 	useJUnitPlatform() // Obligatorio para que Gradle reconozca y ejecute JUnit 5
+	dependsOn unitTest, functionalTest
+	exclude '**/*' // Avoid running tests twice
 }
 
 tasks.register('stopServer') {
 	group = 'application'
-	description = 'Stops any running server process on port 8080'
+	description = 'Stops any running server process on port 8585'
 	doLast {
 		def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
 		if (isWindows) {
@@ -46,7 +76,7 @@ tasks.register('stopServer') {
 				def line
 				def pids = [] as Set
 				while ((line = reader.readLine()) != null) {
-					if (line.contains(":8080") && line.contains("LISTENING")) {
+					if (line.contains(":8585") && line.contains("LISTENING")) {
 						def parts = line.trim().split("\\s+")
 						if (parts.length >= 5) {
 							def pid = parts[4]
@@ -68,7 +98,7 @@ tasks.register('stopServer') {
 			}
 		} else {
 			try {
-				def process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "lsof -t -i:8080"})
+				def process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "lsof -t -i:8585"})
 				def reader = new BufferedReader(new InputStreamReader(process.getInputStream()))
 				def pid = reader.readLine()?.trim()
 				reader.close()
@@ -86,6 +116,7 @@ tasks.register('stopServer') {
 
 tasks.named('bootRun') {
 	dependsOn 'stopServer'
+	args = ['--server.port=8585']
 }
 
 tasks.register('startServer') {
@@ -118,8 +149,26 @@ tasks.register('copyFrontend', Copy) {
 	description = 'Copies the compiled frontend assets to Spring Boot static resources'
 	dependsOn 'npmBuild', 'cleanStatic'
 	
-	from 'frontend/dist'
+	from layout.projectDirectory.dir('frontend/dist')
 	into layout.projectDirectory.dir("src/main/resources/static")
 }
 
 
+tasks.register('runFrontend', Exec) {
+	group = 'application'
+	description = 'Runs the frontend dev server on port 5173'
+	workingDir 'frontend'
+	
+	def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+	if (isWindows) {
+		commandLine 'cmd', '/c', 'npm run dev -- --port 5173'
+	} else {
+		commandLine 'npm', 'run', 'dev', '--', '--port', '5173'
+	}
+}
+
+tasks.register('runBackend') {
+	group = 'application'
+	description = 'Alias for bootRun to start the backend on port 8585'
+	dependsOn 'bootRun'
+}

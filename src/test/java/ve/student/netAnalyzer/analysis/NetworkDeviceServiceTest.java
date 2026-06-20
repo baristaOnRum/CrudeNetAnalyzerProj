@@ -1,4 +1,4 @@
-package ve.student.netAnalyzer.program_tests;
+package ve.student.netAnalyzer.analysis;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

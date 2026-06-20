@@ -1,4 +1,6 @@
-package ve.student.netAnalyzer.service;
+package ve.student.netAnalyzer.event;
+
+import ve.student.netAnalyzer.service.EventServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -6,10 +8,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import ve.student.netAnalyzer.model.Event;
+import ve.student.netAnalyzer.model.AppUser;
 import ve.student.netAnalyzer.model.ExportFormat;
 import ve.student.netAnalyzer.dto.EventDto;
 import ve.student.netAnalyzer.dto.EventFilter;
 import ve.student.netAnalyzer.repository.EventRepository;
+import ve.student.netAnalyzer.repository.UserRepository;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,6 +27,9 @@ public class EventServiceTest {
     @Mock
     private EventRepository repository;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private EventServiceImpl service;
 
@@ -34,18 +41,20 @@ public class EventServiceTest {
     @Test
     void testRegisterEvent_Success() {
         EventDto dto = new EventDto();
+        dto.setIdSesion("SES-001");
         dto.setNombreEvento("LOGIN");
-        dto.setIdUsuario(1);
+        dto.setIdUsuario(1L);
         
-        when(repository.save(any(Event.class))).thenAnswer(i -> {
-            Event e = i.getArgument(0);
-            e.setIdSesion(1);
-            return e;
-        });
+        AppUser mockUser = new AppUser();
+        mockUser.setId(1L);
+        
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(repository.save(any(Event.class))).thenAnswer(i -> i.getArgument(0));
 
         Event result = service.registerEvent(dto);
-        assertNotNull(result.getIdSesion());
+        assertEquals("SES-001", result.getIdSesion());
         assertEquals("LOGIN", result.getNombreEvento());
+        assertNotNull(result.getUsuario());
         verify(repository, times(1)).save(any(Event.class));
     }
 
@@ -66,10 +75,10 @@ public class EventServiceTest {
 
     @Test
     void testExportEvent_AsCsv() {
-        Event e1 = new Event(); e1.setIdSesion(1); e1.setNombreEvento("TEST");
-        when(repository.findById(1)).thenReturn(Optional.of(e1));
+        Event e1 = new Event(); e1.setIdSesion("SES-1"); e1.setNombreEvento("TEST");
+        when(repository.findById("SES-1")).thenReturn(Optional.of(e1));
         
-        byte[] result = service.exportEvent(1, ExportFormat.CSV);
+        byte[] result = service.exportEvent("SES-1", ExportFormat.CSV);
         assertTrue(result.length > 0);
         String strResult = new String(result);
         assertTrue(strResult.contains("TEST"));

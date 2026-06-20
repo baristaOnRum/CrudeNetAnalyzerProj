@@ -1,4 +1,4 @@
-package ve.student.netAnalyzer.program_tests;
+package ve.student.netAnalyzer.analysis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

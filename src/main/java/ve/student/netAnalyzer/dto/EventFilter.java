@@ -2,12 +2,12 @@ package ve.student.netAnalyzer.dto;
 
 public class EventFilter {
     private String nombreEvento;
-    private Integer idUsuario;
+    private Long idUsuario;
 
     public EventFilter() {}
 
     public String getNombreEvento() { return nombreEvento; }
     public void setNombreEvento(String nombreEvento) { this.nombreEvento = nombreEvento; }
-    public Integer getIdUsuario() { return idUsuario; }
-    public void setIdUsuario(Integer idUsuario) { this.idUsuario = idUsuario; }
+    public Long getIdUsuario() { return idUsuario; }
+    public void setIdUsuario(Long idUsuario) { this.idUsuario = idUsuario; }
 }

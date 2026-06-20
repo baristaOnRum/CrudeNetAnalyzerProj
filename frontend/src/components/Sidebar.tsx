@@ -9,14 +9,16 @@ import { AppView } from '../types';
 interface SidebarProps {
   currentView: AppView;
   onViewChange: (view: AppView) => void;
-  currentSourceId: string;
+  userName: string;
+  userRole: string;
   onLogout: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   onViewChange,
-  currentSourceId,
+  userName,
+  userRole,
   onLogout
 }) => {
   return (
@@ -25,11 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-6">
         <h1 className="text-xl font-bold text-primary font-sans flex items-center gap-2">
           <span className="material-symbols-outlined text-primary text-xl">router</span>
-          Nombre Pendiente
         </h1>
-        <p className="font-mono text-[10px] uppercase font-bold text-[#64748B] mt-1 tracking-wider">
-          Interfaz: {currentSourceId || 'Canal del Sistema'}
-        </p>
       </div>
 
       {/* Navigation items list */}
@@ -120,9 +118,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="material-symbols-outlined">person</span>
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-xs font-semibold truncate text-[#1E293B]">Administrador</p>
+            <p className="text-xs font-semibold truncate text-[#1E293B]">{userName}</p>
             <p className="text-[9px] font-mono font-bold tracking-wider text-[#64748B] uppercase">
-              ACCESO NIVEL 4
+              {userRole}
             </p>
           </div>
           <button 

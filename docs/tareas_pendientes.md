@@ -54,8 +54,8 @@ Este documento unifica y organiza de manera tabular todas las tareas pendientes 
 | :--- | :--- | :--- | :--- | :--- |
 | **T-5.1** | 🔴 Pendiente | Obs. #13 | **Estandarizar cuadros físicos** | Renumerar consecutivamente los cuadros de Requisitos de Hardware (Cuadro 6) y Requisitos de Software (Cuadro 7). |
 | **T-5.2** | 🟢 Completado | Obs. #14 | ~~**Simplificar y unificar RF**~~ | Reemplazar los códigos complejos por una numeración secuencial unificada indicando su módulo respectivo. |
-| **T-5.3** | 🔴 Pendiente | Obs. #15 | **Ampliar tabla de RNF** | Estructurar la tabla de requisitos no funcionales bajo criterios de calidad (ej. Norma ISO 25010). |
-| **T-5.4** | 🔴 Pendiente | Obs. #16 | **Organizar validación con usuarios** | Separar el cuadro duplicado "Sumario de Usuarios" en: Cuadro A (Definición de roles) y Cuadro B (Validación de requerimientos con usuarios clave). |
+| **T-5.3** | 🟢 Completado | Obs. #15 | ~~**Ampliar tabla de RNF**~~ | Estructurar la tabla de requisitos no funcionales bajo criterios de calidad (ej. Norma ISO 25010). |
+| **T-5.4** | 🟢 Completado | Obs. #16 | ~~**Organizar validación con usuarios**~~ | Separar el cuadro duplicado "Sumario de Usuarios" en: Cuadro A (Definición de roles) y Cuadro B (Validación de requerimientos con usuarios clave). |
 | **T-5.5** | 🔴 Pendiente | Obs. #17 | **Diagramas de Casos de Uso Propuesta** | Reemplazar la imagen temporal media/image13.png por los diagramas de casos de uso propuestos, y ajustar la numeración. |
 | **T-5.6** | 🔴 Pendiente | Obs. #18, Cuaderno 2 | **Modelado y Diseño de Datos** | Realizar el Modelado de Datos definitivo escribiendo el texto explicativo correspondiente para cada entidad. |
 | **T-5.7** | 🔴 Pendiente | Obs. #18 | **Diagrama E-R (Entidad-Relación)** | Eliminar el texto de relleno, asignar número correlativo a la figura y redactar la descripción del comportamiento de sus entidades. |

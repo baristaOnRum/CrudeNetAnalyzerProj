@@ -1,4 +1,6 @@
-package ve.student.netAnalyzer.service;
+package ve.student.netAnalyzer.user;
+
+import ve.student.netAnalyzer.service.UserServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -7,6 +7,7 @@ public class PacketDto {
     private String destino;
     private String respuesta;
     private Integer tiempoRespuesta;
+    private Integer idAnalisis;
 
     public PacketDto() {}
 
@@ -22,4 +23,6 @@ public class PacketDto {
     public void setRespuesta(String respuesta) { this.respuesta = respuesta; }
     public Integer getTiempoRespuesta() { return tiempoRespuesta; }
     public void setTiempoRespuesta(Integer tiempoRespuesta) { this.tiempoRespuesta = tiempoRespuesta; }
+    public Integer getIdAnalisis() { return idAnalisis; }
+    public void setIdAnalisis(Integer idAnalisis) { this.idAnalisis = idAnalisis; }
 }

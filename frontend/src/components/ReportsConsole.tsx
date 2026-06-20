@@ -269,24 +269,6 @@ export const ReportsConsole: React.FC = () => {
                     </div>
                   </label>
 
-                  {/* Option 3: Security Audit */}
-                  <label className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${
-                    reportType === 'security' 
-                      ? 'bg-[#F1F5F9] border-primary' 
-                      : 'bg-white border-[#E2E8F0] hover:border-slate-300'
-                  }`}>
-                    <input 
-                      type="radio"
-                      name="report_type_radio"
-                      checked={reportType === 'security'}
-                      onChange={() => setReportType('security')}
-                      className="text-primary focus:ring-primary rounded-full"
-                    />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-[#0F172A]">Auditoría de Seguridad</p>
-                      <p className="text-[10px] text-[#64748B]">Detección de amenazas y mapeo de CVE</p>
-                    </div>
-                  </label>
 
                 </div>
               </div>
@@ -398,40 +380,7 @@ export const ReportsConsole: React.FC = () => {
         </aside>
       </div>
 
-      {/* Decorative footer metrics session bottom row */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 select-none">
-        
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl flex items-center gap-4 shadow-sm">
-          <div className="w-11 h-11 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 text-primary">
-            <span className="material-symbols-outlined">cloud_download</span>
-          </div>
-          <div>
-            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Almacenamiento Usado</p>
-            <p className="text-base font-bold text-[#0F172A]">14.2 GB / 50 GB</p>
-          </div>
-        </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl flex items-center gap-4 shadow-sm">
-          <div className="w-11 h-11 bg-teal-100/30 rounded-full flex items-center justify-center border border-teal-200 text-[#0F766E]">
-            <span className="material-symbols-outlined">history</span>
-          </div>
-          <div>
-            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Última Exportación</p>
-            <p className="text-base font-bold text-[#0F172A]">Hace 15 min</p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] p-4 rounded-xl flex items-center gap-4 shadow-sm">
-          <div className="w-11 h-11 bg-amber-100/30 rounded-full flex items-center justify-center border border-amber-200 text-amber-500 font-bold">
-            <span className="material-symbols-outlined">shield</span>
-          </div>
-          <div>
-            <p className="text-[9px] font-mono font-bold text-[#64748B] uppercase tracking-widest">Cumplimiento</p>
-            <p className="text-base font-bold text-[#0F172A]">Certificado SOC2</p>
-          </div>
-        </div>
-
-      </section>
 
     </div>
   );

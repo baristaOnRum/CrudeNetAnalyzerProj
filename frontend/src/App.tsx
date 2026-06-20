@@ -16,13 +16,12 @@ import { LogsExplorer } from './components/LogsExplorer';
 import { SettingsPanel } from './components/SettingsPanel';
 
 export default function App() {
-  const [view, setView] = useState<AppView>('packets');
-  const [currentSourceId, setCurrentSourceId] = useState('SYS-01-LOCAL');
+  const [view, setView] = useState<AppView>('uplink');
+  const [session, setSession] = useState({ name: 'Invitado', role: 'OBSERVADOR', token: '' });
   const [searchQuery, setSearchQuery] = useState('');
-  const [speedMode, setSpeedMode] = useState<'normal' | 'fast' | 'turbo'>('normal');
 
-  const handleLoginSuccess = (sourceId: string) => {
-    setCurrentSourceId(sourceId);
+  const handleLoginSuccess = (user: { sourceId: string; role: string; token: string }) => {
+    setSession({ name: user.sourceId, role: user.role, token: user.token });
     // After logging in, redirect to packets which represents Page 1 live streaming packets
     setView('packets');
   };
@@ -32,19 +31,13 @@ export default function App() {
     setSearchQuery('');
   };
 
-  const handleSpeedToggle = () => {
-    setSpeedMode((prev) => {
-      if (prev === 'normal') return 'fast';
-      if (prev === 'fast') return 'turbo';
-      return 'normal';
-    });
-  };
+
 
   // Render view screen selector
   const renderContent = () => {
     switch (view) {
       case 'packets':
-        return <PacketManagement searchQuery={searchQuery} speedMode={speedMode} />;
+        return <PacketManagement searchQuery={searchQuery} />;
       case 'dashboard':
         return <NetworkAnalyzer searchQuery={searchQuery} />;
       case 'reports':
@@ -52,17 +45,15 @@ export default function App() {
       case 'logs':
         return <LogsExplorer searchQuery={searchQuery} />;
       case 'users':
-        return <UserManager searchQuery={searchQuery} />;
+        return <UserManager searchQuery={searchQuery} currentUserRole={session.role} />;
       case 'settings':
         return (
           <SettingsPanel
-            speedMode={speedMode}
-            onSpeedChange={setSpeedMode}
             onLogout={handleLogout}
           />
         );
       default:
-        return <PacketManagement searchQuery={searchQuery} speedMode={speedMode} />;
+        return <PacketManagement searchQuery={searchQuery} />;
     }
   };
 
@@ -76,7 +67,8 @@ export default function App() {
       <Sidebar
         currentView={view}
         onViewChange={setView}
-        currentSourceId={currentSourceId}
+        userName={session.name}
+        userRole={session.role}
         onLogout={handleLogout}
       />
 
@@ -87,8 +79,6 @@ export default function App() {
           currentView={view}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSpeedToggle={handleSpeedToggle}
-          speedMode={speedMode}
         />
 
         {/* Core content wrapper area with top header offset padding */}

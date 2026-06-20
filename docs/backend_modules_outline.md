@@ -6,8 +6,8 @@ Para facilitar su integración directa con las pruebas unitarias (por ejemplo, u
 
 ---
 
-## 1. Módulo: Gestionar Autenticación (`AuthService`)
-Encargado de la seguridad, accesos y sesiones del sistema.
+## 1. Módulo: Gestionar Autenticación (`AuthService`) - [IMPLEMENTADO]
+Encargado de la seguridad, accesos y sesiones del sistema. La UI ahora consume `/api/auth/login`.
 
 **Funciones del Back-End (Métodos):**
 ```java
@@ -24,8 +24,8 @@ public AuthToken loginAsGuest();               // RF-3-3 Iniciar sesión de invi
 
 ---
 
-## 2. Módulo: Gestionar Análisis (`AnalysisService` / `NetworkMonitorService`)
-Encargado de la captura, monitorización y análisis del tráfico de red.
+## 2. Módulo: Gestionar Análisis (`AnalysisService` / `NetworkMonitorService`) - [PENDIENTE]
+Encargado de la captura, monitorización y análisis del tráfico de red. Falta implementar la lógica de las opciones "Iniciar Monitoreo (Pasivo)" e "Iniciar Análisis (Activo)", así como rellenar las métricas de tráfico y la distribución de protocolos en la UI. Adicionalmente, falta implementar un endpoint real para ejecutar el Ping Indeterminado o la Traza de Ruta.
 
 **Funciones del Back-End (Métodos):**
 ```java
@@ -45,8 +45,8 @@ public Analysis loadAnalysis(Long analysisId);                      // RF-1-6 Ca
 
 ---
 
-## 3. Módulo: Administrar Configuraciones (`ConfigurationService`)
-Encargado de los parámetros y conexiones del sistema.
+## 3. Módulo: Administrar Configuraciones (`ConfigurationService`) - [PENDIENTE]
+Encargado de los parámetros y conexiones del sistema. Falta integración final con un módulo UI para editar las variables en tiempo real.
 
 **Funciones del Back-End (Métodos):**
 ```java
@@ -61,8 +61,8 @@ public void manageDatabaseConnection(DbConnectionDto dbConfig);   // RF-5-2 Admi
 
 ---
 
-## 4. Módulo: Gestionar Reportes (`ReportService`)
-Encargado de generar información y resúmenes para el usuario final.
+## 4. Módulo: Gestionar Reportes (`ReportService`) - [PENDIENTE]
+Encargado de generar información y resúmenes para el usuario final. La consola de reportes en React aún necesita integrarse con estos endpoints de agregación y generación.
 
 **Funciones del Back-End (Métodos):**
 ```java
@@ -76,8 +76,8 @@ public Statistics generateStatistics(DateRange range); // RF-2-2 Generar Estadí
 
 ---
 
-## 5. Módulo: Gestionar Paquetes (`PacketService`)
-Encargado del manejo y almacenamiento de los paquetes capturados individualmente.
+## 5. Módulo: Gestionar Paquetes (`PacketService`) - [IMPLEMENTADO]
+Encargado del manejo y almacenamiento de los paquetes capturados individualmente. Se cuenta con el CRUD completo y visualización en vivo vía `/api/packets`.
 
 **Funciones del Back-End (Métodos):**
 ```java
@@ -95,8 +95,8 @@ public byte[] exportPacket(Long packetId, ExportFormat fmt); // RF-4-4 Exportar 
 
 ---
 
-## 6. Módulo: Gestionar Usuarios (`UserService`)
-Manejo del CRUD de las cuentas de usuario y administradores.
+## 6. Módulo: Gestionar Usuarios (`UserService`) - [IMPLEMENTADO]
+Manejo del CRUD de las cuentas de usuario y administradores. Funcional a través de `/api/users`. Se ha creado un inyector (DataInitializer) para el usuario 'admin'.
 
 **Funciones del Back-End (Métodos):**
 ```java
@@ -114,8 +114,8 @@ public User modifyUser(Long userId, UserUpdateDto newData); // RF-7-6 Modificar 
 
 ---
 
-## 7. Módulo: Gestionar Eventos (`EventService`)
-Auditoría y control de sucesos ocurridos dentro del sistema (logs/eventos).
+## 7. Módulo: Gestionar Eventos (`EventService`) - [IMPLEMENTADO]
+Auditoría y control de sucesos ocurridos dentro del sistema (logs/eventos). La pestaña de explorador de registros consume el backend a través de `/api/events`.
 
 **Funciones del Back-End (Métodos):**
 ```java

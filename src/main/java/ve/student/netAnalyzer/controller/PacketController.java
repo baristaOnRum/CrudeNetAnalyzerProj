@@ -1,23 +1,32 @@
 package ve.student.netAnalyzer.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import ve.student.netAnalyzer.model.Packet;
+import ve.student.netAnalyzer.dto.PacketDto;
+import ve.student.netAnalyzer.dto.PacketFilter;
+import ve.student.netAnalyzer.service.PacketService;
+
 import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/packets")
+
 public class PacketController {
 
-    // Swap this representation with your JPA Repository calls once your entity
-    // mapping is ready.
-    @GetMapping("/packets")
-    public List<Map<String, Object>> getActivePackets() {
-        return List.of(
-                Map.of("id", "PKT-42012", "timestamp", "12:04:15.882", "sourceIp", "192.168.1.104", "destIp",
-                        "10.0.0.12", "protocol", "TCP", "length", 512),
-                Map.of("id", "PKT-42013", "timestamp", "12:04:16.102", "sourceIp", "10.0.0.5", "destIp", "8.8.8.8",
-                        "protocol", "UDP", "length", 64));
+    private final PacketService packetService;
+
+    public PacketController(PacketService packetService) {
+        this.packetService = packetService;
+    }
+
+    @GetMapping
+    public List<Packet> getActivePackets() {
+        return packetService.listPackets(new PacketFilter());
+    }
+
+    @PostMapping
+    public ResponseEntity<Packet> registerPacket(@RequestBody PacketDto dto) {
+        return ResponseEntity.ok(packetService.registerPacket(dto));
     }
 }

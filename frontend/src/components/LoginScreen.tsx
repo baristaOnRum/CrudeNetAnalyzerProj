@@ -6,18 +6,18 @@
 import React, { useState } from 'react';
 
 interface LoginScreenProps {
-  onLoginSuccess: (nodeId: string) => void;
+  onLoginSuccess: (user: { sourceId: string; role: string; token: string }) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [sourceId, setSourceId] = useState('SYS-01-LOCAL');
-  const [accessKey, setAccessKey] = useState('ADMIN-ACCESS-SECRET-KEY');
+  const [password, setPassword] = useState('ADMIN-ACCESS-SECRET-KEY');
   const [status, setStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
   const [logs, setLogs] = useState<string[]>([]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sourceId || !accessKey) {
+    if (!sourceId || !password) {
       setStatus('error');
       setLogs(['[ERROR] Falló la conexión: Faltan parámetros.']);
       return;
@@ -30,8 +30,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const steps = [
       { text: '[SISTEMA] Iniciando protocolo seguro AES-256-GCM...', delay: 250 },
       { text: '[AUTORIZACIÓN] Validando firma de clave de acceso con dominio principal...', delay: 550 },
-      { text: '[PUERTO] Sockets establecidos en la interfaz de adaptador de dispositivo virtual...', delay: 850 },
-      { text: '[SEGURIDAD] Enlace de cifrado TLS 1.3 completado. Acceso PERMITIDO.', delay: 1150 }
     ];
 
     steps.forEach((step) => {
@@ -40,12 +38,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       }, step.delay);
     });
 
-    setTimeout(() => {
-      setStatus('success');
-      setTimeout(() => {
-        onLoginSuccess(sourceId);
-      }, 600);
-    }, 1400);
+    setTimeout(async () => {
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: sourceId, password: password })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Assuming backend might not return full role yet, use fallback based on name or 'admin'
+          const role = sourceId === 'admin' ? 'ADMINISTRADOR (Nivel 4)' : 'ANALISTA (Nivel 3)';
+          const token = `SESSION-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+          setLogs((prev) => [...prev, '[SEGURIDAD] Enlace de cifrado TLS 1.3 completado. Acceso PERMITIDO.']);
+          setStatus('success');
+          setTimeout(() => {
+            onLoginSuccess({ sourceId, role, token });
+          }, 600);
+        } else {
+          setLogs((prev) => [...prev, '[ERROR] Credenciales inválidas. Acceso denegado.']);
+          setStatus('error');
+        }
+      } catch (err) {
+        setLogs((prev) => [...prev, '[ERROR] Falló la conexión con el servidor.']);
+        setStatus('error');
+      }
+    }, 850);
   };
 
   return (
@@ -60,12 +79,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <span className="material-symbols-outlined text-primary text-3xl">shield_lock</span>
             Nombre Pendiente
           </h1>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <span className="w-2 h-2 rounded-full bg-primary glow-pulse" />
-            <span className="text-[10px] font-sans tracking-wider text-[#64748B] uppercase font-bold">
-              Protocolo de Seguridad de Red Activo
-            </span>
-          </div>
         </div>
 
         {/* Central Login Card */}
@@ -99,19 +112,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
             {/* Access Key */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-sans font-bold text-[#64748B] uppercase flex justify-between tracking-wider" htmlFor="access_key">
+              <label className="text-[10px] font-sans font-bold text-[#64748B] uppercase flex justify-between tracking-wider" htmlFor="password">
                 Clave de Acceso
                 <span className="material-symbols-outlined text-[14px]">key</span>
               </label>
               <input 
-                id="access_key"
-                name="access_key"
+                id="password"
+                name="password"
                 type="password"
                 placeholder="••••••••••••••••"
                 required
                 disabled={status === 'connecting' || status === 'success'}
-                value={accessKey}
-                onChange={(e) => setAccessKey(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-[#F1F5F9] border-none focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-2.5 font-mono text-xs text-[#1E293B] transition-all duration-150 outline-none placeholder-[#94A3B8]"
               />
               <div className="flex justify-end mt-1">
@@ -136,17 +149,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </div>
             )}
 
-            {/* Security Check Banner */}
-            <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary-container text-primary flex items-center justify-center">
-                <span className="material-symbols-outlined text-md">shield_lock</span>
-              </div>
-              <div>
-                <p className="font-sans text-[10px] font-bold text-[#0F172A]">Cifrado: AES-256 GCM</p>
-                <p className="font-sans text-[10px] text-[#64748B]">TLS 1.3 | Capa de Sockets Seguros</p>
-              </div>
-            </div>
-
             {/* Submit Action Button */}
             <button 
               type="submit"
@@ -155,23 +157,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 status === 'success' 
                   ? 'bg-green-600 text-white' 
                   : status === 'connecting'
-                    ? 'bg-slate-400 text-white cursor-not-allowed'
+                    ? 'bg-primary/50 text-white/80 cursor-not-allowed'
                     : 'bg-primary text-white hover:bg-opacity-95 active:scale-[0.98]'
               }`}
             >
-              {status === 'connecting' && (
+              {status === 'connecting' ? (
                 <>
                   <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                  Estableciendo Enlace...
+                  Establecer Enlace
                 </>
-              )}
-              {status === 'success' && (
+              ) : status === 'success' ? (
                 <>
                   <span className="material-symbols-outlined text-[18px]">check_circle</span>
                   Acceso Permitido
                 </>
-              )}
-              {status === 'idle' && (
+              ) : (
                 <>
                   Establecer Enlace
                   <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">bolt</span>

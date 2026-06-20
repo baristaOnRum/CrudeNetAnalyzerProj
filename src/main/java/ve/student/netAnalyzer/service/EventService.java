@@ -10,6 +10,6 @@ import java.util.List;
 public interface EventService {
     Event registerEvent(EventDto eventData);
     List<Event> listEvents(EventFilter filter);
-    Event getEventDetails(Integer eventId);
-    byte[] exportEvent(Integer eventId, ExportFormat fmt);
+    Event getEventDetails(String eventId);
+    byte[] exportEvent(String eventId, ExportFormat fmt);
 }

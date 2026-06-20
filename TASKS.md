@@ -16,14 +16,20 @@ These build tasks are defined and registered within the [build.gradle](file:///c
   * **Command**: Copies the compiled assets from `frontend/dist` to `src/main/resources/static`.
   * **Description**: Copies the compiled frontend assets to the Spring Boot static resources folder. (Depends on `npmBuild` and `cleanStatic`).
 * **`stopServer`**
-  * **Command**: Runs shell commands to find and terminate processes listening on port 8080.
-  * **Description**: Stops any running web server process on port 8080 to prevent address-already-in-use errors.
+  * **Command**: Runs shell commands to find and terminate processes listening on port 8585.
+  * **Description**: Stops any running web server process on port 8585 to prevent address-already-in-use errors.
 * **`startServer`**
   * **Command**: Runs the `bootRun` task.
   * **Description**: Starts the Spring Boot web server and pipes output to the console. (Depends on `bootRun`).
 * **`bootRun`** (Spring Boot Plugin Task)
-  * **Command**: Runs the main class of the Spring Boot application.
-  * **Description**: Runs the backend server process. (Configured to depend on `stopServer`).
+  * **Command**: Runs the main class of the Spring Boot application on port 8585.
+  * **Description**: Runs the backend server process. (Configured to depend on `stopServer` and run on port 8585).
+* **`runFrontend`**
+  * **Command**: Runs `npm run dev -- --port 5173` in the `frontend` directory.
+  * **Description**: Starts the frontend Vite development server.
+* **`runBackend`**
+  * **Command**: Runs the `bootRun` task.
+  * **Description**: Alias for `bootRun` to start the Spring Boot backend on port 8585.
 * **`test`** (Built-in Java Task)
   * **Command**: Executes backend unit and integration tests using JUnit 5.
   * **Description**: Runs all automated tests for the backend.

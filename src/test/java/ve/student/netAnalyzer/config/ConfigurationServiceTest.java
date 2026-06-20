@@ -1,4 +1,6 @@
-package ve.student.netAnalyzer.service;
+package ve.student.netAnalyzer.config;
+
+import ve.student.netAnalyzer.service.ConfigurationServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import org.springframework.test.util.ReflectionTestUtils;
 
 public class ConfigurationServiceTest {
 
@@ -25,6 +28,7 @@ public class ConfigurationServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        ReflectionTestUtils.setField(service, "yamlPath", "build/test-application.yaml");
     }
 
     @Test

@@ -1,4 +1,6 @@
-package ve.student.netAnalyzer.service;
+package ve.student.netAnalyzer.packet;
+
+import ve.student.netAnalyzer.service.PacketServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +12,7 @@ import ve.student.netAnalyzer.model.ExportFormat;
 import ve.student.netAnalyzer.dto.PacketDto;
 import ve.student.netAnalyzer.dto.PacketFilter;
 import ve.student.netAnalyzer.repository.PacketRepository;
+import ve.student.netAnalyzer.repository.AnalisisRedRepository;
 
 import java.util.Arrays;
 import java.util.List;
@@ -22,6 +25,9 @@ public class PacketServiceTest {
 
     @Mock
     private PacketRepository repository;
+
+    @Mock
+    private AnalisisRedRepository analisisRedRepository;
 
     @InjectMocks
     private PacketServiceImpl service;

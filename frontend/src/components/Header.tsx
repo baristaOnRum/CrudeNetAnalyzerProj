@@ -10,16 +10,12 @@ interface HeaderProps {
   currentView: AppView;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onSpeedToggle?: () => void;
-  speedMode?: 'normal' | 'fast' | 'turbo';
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentView,
   searchQuery,
-  onSearchChange,
-  onSpeedToggle,
-  speedMode = 'normal'
+  onSearchChange
 }) => {
   const [showSystemInfo, setShowSystemInfo] = useState(false);
 
@@ -45,19 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Derive subtitle/badge format based on view
   const getSubBadge = () => {
-    if (currentView === 'reports') {
-      return (
-        <span className="text-[10px] font-mono text-primary font-bold tracking-widest bg-primary-container px-2.5 py-1 rounded-full uppercase border border-[#E2E8F0]">
-          Consola de Reportes
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1.5 text-xs text-primary font-medium bg-[#F0FDF4] text-[#166534] px-2.5 py-1 rounded-full border border-[#D1FAE5]">
-        <span className="w-2 h-2 rounded-full bg-[#166534] glow-pulse" />
-        Sistema Operativo
-      </span>
-    );
+    return null;
   };
 
   // Search input placeholder text helper
@@ -161,15 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="h-full bg-primary w-[26%]" />
                   </div>
                 </div>
-                <div>
-                  <div className="flex justify-between text-[11px] text-[#64748B] font-mono mb-1">
-                    <span>Tasa de paquetes</span>
-                    <span>{speedMode === 'turbo' ? '12.4k paq/s' : speedMode === 'fast' ? '4.8k paq/s' : '1.2k paq/s'}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-500 w-[45%]" />
-                  </div>
-                </div>
+
               </div>
             </div>
           )}
