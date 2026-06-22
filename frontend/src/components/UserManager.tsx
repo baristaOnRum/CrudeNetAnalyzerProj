@@ -4,14 +4,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { Operator } from '../types';
 
 interface UserManagerProps {
-  searchQuery: string;
   currentUserRole: string;
 }
 
-export const UserManager: React.FC<UserManagerProps> = ({ searchQuery, currentUserRole }) => {
+export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -47,7 +47,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery, currentUs
   const handleAddOperatorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newPassword) {
-      alert('Por favor complete los campos Nombre y Contraseña.');
+      Swal.fire({ text: 'Por favor complete los campos Nombre y Contraseña.', icon: 'warning', confirmButtonColor: '#4F46E5' });
       return;
     }
 
@@ -69,46 +69,37 @@ export const UserManager: React.FC<UserManagerProps> = ({ searchQuery, currentUs
 
   const handleToggleStatus = (email: string) => {
     // Note: status is not supported in the current AppUser entity backend
-    alert('Función no soportada por el backend en esta versión.');
+    Swal.fire({ text: 'Función no soportada por el backend en esta versión.', icon: 'info', confirmButtonColor: '#4F46E5' });
   };
 
   const handleDeleteOperator = async (id: number, name: string) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar al operador "${name}" del acceso al sistema?`)) {
-      try {
-        await fetch(`/api/users/${id}`, { method: 'DELETE' });
-        fetchUsers();
-      } catch (e) {
-        console.error(e);
+    Swal.fire({
+      title: '¿Eliminar usuario?',
+      text: `¿Está seguro de que desea eliminar al operador "${name}" del acceso al sistema?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#4F46E5',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await fetch(`/api/users/${id}`, { method: 'DELETE' });
+          fetchUsers();
+        } catch (e) {
+          console.error(e);
+        }
       }
-    }
+    });
   };
 
-  const filteredOperators = operators.filter((op) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return op.name.toLowerCase().includes(q) || op.email.toLowerCase().includes(q) || op.role.toLowerCase().includes(q);
-  });
+  const filteredOperators = operators;
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="fixed top-0 right-0 left-64 z-50 bg-[#ffb703]/10 border-b border-[#ffb703]/20 px-6 py-2 flex items-center justify-center gap-2 backdrop-blur-md select-none">
-        <span className="material-symbols-outlined text-[#ffb703] text-[18px]">lock</span>
-        <span className="font-mono text-[10px] font-bold text-[#271900] tracking-wider uppercase">
-          ACCESO RESTRINGIDO: SE REQUIEREN PERMISOS DE NIVEL 4
-        </span>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 select-none">
-        <div>
-          <h1 className="text-3.5xl font-bold tracking-tight text-slate-950 font-sans leading-none flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-3.5xl">security</span>
-            Gestionar Usuarios
-          </h1>
-          <p className="text-sm text-[#42474e] mt-1">
-            Control de acceso de usuarios en todo el sistema y perfiles de gestión de autorización.
-          </p>
-        </div>
-
+    <div className="space-y-6 font-sans mt-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 select-none">
+        <div></div>
         {currentUserRole.includes('ADMIN') && (
           <button
             onClick={() => setShowAddModal(true)}

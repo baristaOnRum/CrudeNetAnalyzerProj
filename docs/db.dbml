@@ -1,0 +1,43 @@
+Table usuarios {
+  id int [pk]
+  nombre varchar
+  pass_hasheada varchar
+  rol varchar
+}
+
+Table analisis_red {
+  id int [pk]
+  fecha_ejecucion datetime
+  duracion_analisis int
+  usuario_ejecutado int
+}
+
+Table paquetes {
+  id int [pk]
+  tipo_paquete varchar
+  contenidos text
+  fuente varchar
+  destino varchar
+  respuesta text
+  tiempo_respuesta int
+  id_analisis int
+}
+
+Table registro_eventos {
+  id_sesion varchar [pk]
+  nombre_evento varchar
+  detalle_cambio text
+  fecha_hora datetime
+  id_usuario int
+}
+
+Table configuraciones {
+  id_configuracion int [pk]
+  nombre_configuracion varchar
+  valores_disponibles text
+  valor_seleccionado text
+}
+
+Ref: analisis_red.usuario_ejecutado > usuarios.id
+Ref: paquetes.id_analisis > analisis_red.id
+Ref: registro_eventos.id_usuario > usuarios.id

@@ -17,10 +17,12 @@ public class PacketServiceImpl implements PacketService {
 
     private final PacketRepository repository;
     private final AnalisisRedRepository analisisRedRepository;
+    private final SessionManagerService sessionManagerService;
 
-    public PacketServiceImpl(PacketRepository repository, AnalisisRedRepository analisisRedRepository) {
+    public PacketServiceImpl(PacketRepository repository, AnalisisRedRepository analisisRedRepository, SessionManagerService sessionManagerService) {
         this.repository = repository;
         this.analisisRedRepository = analisisRedRepository;
+        this.sessionManagerService = sessionManagerService;
     }
 
     @Override
@@ -36,6 +38,8 @@ public class PacketServiceImpl implements PacketService {
         if (packetData.getIdAnalisis() != null) {
             AnalisisRed analisis = analisisRedRepository.findById(packetData.getIdAnalisis()).orElse(null);
             packet.setAnalisisRed(analisis);
+        } else if (sessionManagerService.getActiveAnalysis() != null) {
+            packet.setAnalisisRed(sessionManagerService.getActiveAnalysis());
         }
         
         return repository.save(packet);

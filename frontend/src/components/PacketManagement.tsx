@@ -12,21 +12,31 @@ interface NetworkPacket {
   destIp: string;
   protocol: string;
   length: number;
+  content: string;
   status: string;
+  idAnalisis?: number;
 }
 
 interface PacketManagementProps {
-  searchQuery: string;
+  activeAnalysisId: number | null;
 }
 
 const RANDOM_IPS = ['192.168.1.104', '10.0.0.5', '8.8.8.8', '172.16.0.1', '142.250.190.46'];
 const PROTOCOLS = ['TCP', 'UDP', 'ICMP', 'DNS', 'HTTPS'];
 
-export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery }) => {
+export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalysisId }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [packets, setPackets] = useState<NetworkPacket[]>([]);
   const [exportingState, setExportingState] = useState<'idle' | 'exporting'>('idle');
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+
+  // Filters
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterExactDate, setFilterExactDate] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterContent, setFilterContent] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchPackets = async () => {
     try {
@@ -39,8 +49,10 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery 
           sourceIp: p.fuente,
           destIp: p.destino,
           protocol: p.tipoPaquete,
+          content: p.contenidos || '',
           length: p.contenidos ? p.contenidos.length : 128,
-          status: 'allowed'
+          status: 'allowed',
+          idAnalisis: p.idAnalisis
         }));
         // Since we want newest first, we reverse it
         setPackets(mapped.reverse().slice(0, 15));
@@ -61,7 +73,8 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery 
       fuente: sourceIp,
       destino: destIp,
       respuesta: "ACK",
-      tiempoRespuesta: Math.floor(Math.random() * 50)
+      tiempoRespuesta: Math.floor(Math.random() * 50),
+      idAnalisis: activeAnalysisId
     };
     try {
       await fetch('/api/packets', {
@@ -83,14 +96,31 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery 
       injectPacket();
     }, 1800);
     return () => clearInterval(timer);
-  }, [isPlaying]);
+  }, [isPlaying, activeAnalysisId]);
 
   const handleTogglePlay = () => setIsPlaying(!isPlaying);
 
   const filteredPackets = packets.filter((p) => {
-    if (!searchQuery) return true;
-    const term = searchQuery.toLowerCase();
-    return p.sourceIp.includes(term) || p.destIp.includes(term) || p.protocol.toLowerCase().includes(term);
+    // 1. Session filter
+    if (activeAnalysisId && p.idAnalisis !== activeAnalysisId) return false;
+
+    // 2. Exact date
+    if (filterExactDate) {
+      // Very simple matching since timestamp is "HH:mm:ss.mmm" in mapped data currently
+      if (!p.timestamp.includes(filterExactDate)) return false;
+    } else {
+      // 3. Date range
+      if (filterStartDate && p.timestamp < filterStartDate) return false;
+      if (filterEndDate && p.timestamp > filterEndDate) return false;
+    }
+
+    // 4. Packet type
+    if (filterType && p.protocol.toLowerCase() !== filterType.toLowerCase()) return false;
+
+    // 5. Content match
+    if (filterContent && !p.content.toLowerCase().includes(filterContent.toLowerCase())) return false;
+
+    return true;
   });
 
   const handleExport = (type: 'CSV' | 'JSON') => {
@@ -120,36 +150,70 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery 
   };
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-2 select-none">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-3xl">terminal</span>
-            Administrar Paquetes
-          </h1>
-          <p className="text-sm text-[#64748B] mt-1">Conectado a la Base de Datos. Inyección y monitor en tiempo real.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {exportMessage && (
-            <div className="bg-[#F0FDF4] text-[#166534] text-xs px-3.5 py-2 rounded-lg border border-[#D1FAE5] flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]">check_circle</span>{exportMessage}
-            </div>
-          )}
-          {exportingState === 'exporting' && (
-            <div className="bg-[#F1F5F9] text-[#0F172A] text-xs px-3.5 py-2 rounded-lg border border-[#E2E8F0] flex items-center gap-2">
-              <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>Preparando...
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6 font-sans mt-4">
 
       <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[#E2E8F0] flex flex-col md:flex-row gap-3 justify-between items-center">
-          <h3 className="font-sans font-bold text-base text-[#0F172A]">Paquetes de Red Activos</h3>
-          <div className="flex items-center gap-4">
+        <div className="p-4 border-b border-[#E2E8F0] flex flex-col md:flex-row gap-3 justify-between items-center bg-slate-50">
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 px-3 py-1.5 rounded-lg w-max"
+            >
+              <span className="material-symbols-outlined text-[16px]">filter_alt</span>
+              {showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+            </button>
+            
+            {showFilters && (
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <input 
+                  type="date" 
+                  title="Fecha Exacta" 
+                  value={filterExactDate} 
+                  onChange={e => setFilterExactDate(e.target.value)} 
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
+                />
+                <span className="text-xs text-slate-400">ó rango:</span>
+                <input 
+                  type="date" 
+                  title="Fecha Inicio" 
+                  value={filterStartDate} 
+                  onChange={e => setFilterStartDate(e.target.value)} 
+                  disabled={!!filterExactDate}
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs disabled:opacity-50"
+                />
+                <input 
+                  type="date" 
+                  title="Fecha Fin" 
+                  value={filterEndDate} 
+                  onChange={e => setFilterEndDate(e.target.value)}
+                  disabled={!!filterExactDate}
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs disabled:opacity-50"
+                />
+                <select
+                  title="Tipo de Paquete"
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs w-28 bg-white"
+                >
+                  <option value="">Cualquier Tipo</option>
+                  {PROTOCOLS.map(proto => (
+                    <option key={proto} value={proto}>{proto}</option>
+                  ))}
+                </select>
+                <input 
+                  type="text" 
+                  placeholder="Buscar contenido..." 
+                  value={filterContent} 
+                  onChange={e => setFilterContent(e.target.value)} 
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-4 mt-3 md:mt-0">
             <div className="flex items-center gap-2">
-              <button onClick={() => handleExport('CSV')} className="px-3 py-1 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">CSV</button>
-              <button onClick={() => handleExport('JSON')} className="px-3 py-1 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">JSON</button>
+              <button onClick={() => handleExport('CSV')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">CSV</button>
+              <button onClick={() => handleExport('JSON')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">JSON</button>
             </div>
             <button
               onClick={handleTogglePlay}
@@ -181,6 +245,13 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ searchQuery 
                   <td className="p-4 text-right pr-6 font-semibold">{pkt.length}</td>
                 </tr>
               ))}
+              {filteredPackets.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-[#64748B] font-sans text-xs">
+                    No se encontraron paquetes para los filtros actuales.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

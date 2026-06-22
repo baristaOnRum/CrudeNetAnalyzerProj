@@ -10,22 +10,24 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import ve.student.netAnalyzer.dto.EventDto;
-import ve.student.netAnalyzer.service.EventService;
+import ve.student.netAnalyzer.dto.AuditDto;
+import ve.student.netAnalyzer.service.AuditService;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final EventService eventService;
+    private final AuditService auditService;
+    private final ve.student.netAnalyzer.service.SessionManagerService sessionManagerService;
     
     // Simulating an active token store
     private final Set<String> activeTokens = new HashSet<>();
 
     @Autowired
-    public AuthServiceImpl(UserRepository userRepository, EventService eventService) {
+    public AuthServiceImpl(UserRepository userRepository, AuditService auditService, ve.student.netAnalyzer.service.SessionManagerService sessionManagerService) {
         this.userRepository = userRepository;
-        this.eventService = eventService;
+        this.auditService = auditService;
+        this.sessionManagerService = sessionManagerService;
     }
 
     @Override
@@ -46,15 +48,18 @@ public class AuthServiceImpl implements AuthService {
                 System.out.println("[AUTH DEBUG] Password match! Generating token.");
                 AuthToken token = generateToken(user.getRol());
                 
+                // Set the active session
+                sessionManagerService.setActiveUser(user);
+                
                 // RF: Create event for login
                 try {
-                    EventDto event = new EventDto();
-                    event.setNombreEvento("LOGIN");
-                    event.setDetalleCambio("Usuario inicio sesion exitosamente");
-                    event.setFechaHora(LocalDateTime.now());
-                    event.setIdUsuario(user.getId());
-                    event.setIdSesion(token.getToken());
-                    eventService.registerEvent(event);
+                    AuditDto audit = new AuditDto();
+                    audit.setNombreAuditoria("LOGIN");
+                    audit.setDetalleCambio("Usuario inicio sesion exitosamente");
+                    audit.setFechaHora(LocalDateTime.now());
+                    audit.setIdUsuario(user.getId());
+                    audit.setIdSesion(token.getToken());
+                    auditService.registerAudit(audit);
                 } catch (Exception e) {
                     System.out.println("[AUTH DEBUG] Failed to register login event: " + e.getMessage());
                 }
@@ -75,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
         if (token != null) {
             activeTokens.remove(token);
         }
+        sessionManagerService.clearActiveUser();
     }
 
     @Override

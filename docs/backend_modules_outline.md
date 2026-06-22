@@ -2,7 +2,21 @@
 
 Basado en el documento de requerimientos funcionales (`requerimientos.pdf`), a continuación se presenta el bosquejo de las funciones del back-end. Dado que el proyecto está configurado con Spring Boot y Java, las funciones se han estructurado como **Servicios (Services)** que agrupan las responsabilidades de cada módulo. 
 
-Para facilitar su integración directa con las pruebas unitarias (por ejemplo, usando JUnit 5 y Mockito), cada módulo define los métodos principales de negocio y una propuesta de los casos de prueba unitarios que deben implementarse para validar los requerimientos.
+Para facilitar su integración directa con las pruebas funcionales, cada módulo define los métodos principales de negocio y una propuesta de los casos de prueba funcionales que deben implementarse para validar los requerimientos en correlación a las vistas del Frontend.
+
+---
+
+## Estado General de Módulos (Metatabla de Seguimiento)
+
+| Módulo | Estado | Servicio (Service) | Controlador REST | Clase de Pruebas (Functional) |
+| :--- | :--- | :--- | :--- | :--- |
+| 1. Autenticación | 🟢 Implementado | `AuthService` | `AuthController` | `AuthFunctionalTest` |
+| 2. Análisis y Monitoreo | 🟡 En Progreso | `AnalysisService` | `AnalysisController` | `AnalysisFunctionalTest` |
+| 3. Configuraciones | 🟡 En Progreso | `ConfigurationService` | `ConfigurationController` | `ConfigurationFunctionalTest` |
+| 4. Reportes | 🟡 En Progreso | `ReportService` | `ReportController` | `ReportFunctionalTest` |
+| 5. Administrar Paquetes | 🟢 Implementado | `PacketService` | `PacketController` | `PacketFunctionalTest` |
+| 6. Gestionar Usuarios | 🟢 Implementado | `UserService` | `UserController` | `UserFunctionalTest` |
+| 7. Explorador de Eventos | 🟢 Implementado | `EventService` | `EventController` | `EventFunctionalTest` |
 
 ---
 

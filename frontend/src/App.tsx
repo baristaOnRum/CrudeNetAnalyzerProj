@@ -12,13 +12,13 @@ import { PacketManagement } from './components/PacketManagement';
 import { NetworkAnalyzer } from './components/NetworkAnalyzer';
 import { ReportsConsole } from './components/ReportsConsole';
 import { UserManager } from './components/UserManager';
-import { LogsExplorer } from './components/LogsExplorer';
+import { AuditExplorer } from './components/AuditExplorer';
 import { SettingsPanel } from './components/SettingsPanel';
 
 export default function App() {
   const [view, setView] = useState<AppView>('uplink');
   const [session, setSession] = useState({ name: 'Invitado', role: 'OBSERVADOR', token: '' });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeAnalysisId, setActiveAnalysisId] = useState<number | null>(null);
 
   const handleLoginSuccess = (user: { sourceId: string; role: string; token: string }) => {
     setSession({ name: user.sourceId, role: user.role, token: user.token });
@@ -28,7 +28,7 @@ export default function App() {
 
   const handleLogout = () => {
     setView('uplink');
-    setSearchQuery('');
+    setActiveAnalysisId(null);
   };
 
 
@@ -37,15 +37,15 @@ export default function App() {
   const renderContent = () => {
     switch (view) {
       case 'packets':
-        return <PacketManagement searchQuery={searchQuery} />;
+        return <PacketManagement activeAnalysisId={activeAnalysisId} />;
       case 'dashboard':
-        return <NetworkAnalyzer searchQuery={searchQuery} />;
+        return <NetworkAnalyzer activeAnalysisId={activeAnalysisId} setActiveAnalysisId={setActiveAnalysisId} />;
       case 'reports':
         return <ReportsConsole />;
-      case 'logs':
-        return <LogsExplorer searchQuery={searchQuery} />;
+      case 'audits':
+        return <AuditExplorer />;
       case 'users':
-        return <UserManager searchQuery={searchQuery} currentUserRole={session.role} />;
+        return <UserManager currentUserRole={session.role} />;
       case 'settings':
         return (
           <SettingsPanel
@@ -53,7 +53,7 @@ export default function App() {
           />
         );
       default:
-        return <PacketManagement searchQuery={searchQuery} />;
+        return <PacketManagement activeAnalysisId={activeAnalysisId} />;
     }
   };
 
@@ -77,8 +77,6 @@ export default function App() {
         {/* Top Header navbar */}
         <Header
           currentView={view}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
         />
 
         {/* Core content wrapper area with top header offset padding */}

@@ -1,18 +1,18 @@
 package ve.student.netAnalyzer.dto;
 
-public class EventDto {
+public class AuditDto {
     private String idSesion;
-    private String nombreEvento;
+    private String nombreAuditoria;
     private String detalleCambio;
     private java.time.LocalDateTime fechaHora;
     private Long idUsuario;
 
-    public EventDto() {}
+    public AuditDto() {}
 
     public String getIdSesion() { return idSesion; }
     public void setIdSesion(String idSesion) { this.idSesion = idSesion; }
-    public String getNombreEvento() { return nombreEvento; }
-    public void setNombreEvento(String nombreEvento) { this.nombreEvento = nombreEvento; }
+    public String getNombreAuditoria() { return nombreAuditoria; }
+    public void setNombreAuditoria(String nombreAuditoria) { this.nombreAuditoria = nombreAuditoria; }
     public String getDetalleCambio() { return detalleCambio; }
     public void setDetalleCambio(String detalleCambio) { this.detalleCambio = detalleCambio; }
     public java.time.LocalDateTime getFechaHora() { return fechaHora; }

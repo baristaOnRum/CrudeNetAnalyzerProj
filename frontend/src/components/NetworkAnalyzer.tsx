@@ -4,12 +4,14 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import Swal from 'sweetalert2';
 
 interface NetworkAnalyzerProps {
-  searchQuery: string;
+  activeAnalysisId: number | null;
+  setActiveAnalysisId: (id: number) => void;
 }
 
-export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery }) => {
+export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysisId, setActiveAnalysisId }) => {
   // Monitoring states
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [packetStats, setPacketStats] = useState({ tcp: 0, udp: 0, icmp: 0, total: 0 });
@@ -44,7 +46,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
     try {
       const response = await fetch('/api/packets');
       if (response.ok) {
-        const data: any[] = await response.json();
+        let data: any[] = await response.json();
+        // Filtrar por ID de análisis activo si existe
+        if (activeAnalysisId) {
+          data = data.filter(p => p.idAnalisis === activeAnalysisId);
+        }
+
         const tcp = data.filter(p => p.tipoPaquete === 'TCP').length;
         const udp = data.filter(p => p.tipoPaquete === 'UDP').length;
         const icmp = data.filter(p => p.tipoPaquete === 'ICMP').length;
@@ -136,8 +143,8 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
   const otherOffset = circumference - currentOffset;
 
   // Infinite Ping Execution simulator
-  const handleStartPing = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStartPing = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!pingTarget) return;
 
     if (pingStatus === 'testing') {
@@ -210,8 +217,8 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
   };
 
   // Route trace execution simulator
-  const handleStartTrace = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStartTrace = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!traceTarget) return;
 
     setTraceStatus('tracing');
@@ -228,6 +235,24 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
     const stepTrace = () => {
       if (currentHopIndex < hopsData.length) {
         setTraceHops((prev) => [...prev, hopsData[currentHopIndex]]);
+        
+        // Save hop as a packet in the DB
+        const hop = hopsData[currentHopIndex];
+        const payload = {
+          tipoPaquete: 'ICMP',
+          contenidos: `TRACE_HOP_${hop.hop}`,
+          fuente: '10.0.0.1', // Local IP source
+          destino: hop.ip,
+          respuesta: 'TTL_EXCEEDED',
+          tiempoRespuesta: hop.latency,
+          idAnalisis: activeAnalysisId
+        };
+        fetch('/api/packets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(e => console.error(e));
+
         currentHopIndex++;
         setTimeout(stepTrace, 600);
       } else {
@@ -238,20 +263,35 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
     setTimeout(stepTrace, 200);
   };
 
+  const handleLoadAnalysis = async () => {
+    const { value: idAnalisis } = await Swal.fire({
+      title: 'Cargar Análisis',
+      input: 'number',
+      inputLabel: 'ID del Análisis de Red',
+      inputPlaceholder: 'Ingrese el ID',
+      showCancelButton: true,
+      confirmButtonColor: '#4F46E5'
+    });
+
+    if (idAnalisis) {
+      setActiveAnalysisId(parseInt(idAnalisis));
+      Swal.fire({ text: `Análisis ${idAnalisis} cargado.`, icon: 'success', confirmButtonColor: '#4F46E5' });
+    }
+  };
+
   return (
-    <div className="space-y-6 font-sans">
-      {/* Session Title and descriptions */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-2 select-none">
+    <div className="space-y-6 font-sans mt-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 select-none">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-3xl">insights</span>
-            Análisis de Red
-          </h1>
-          <p className="text-sm text-[#64748B] mt-1">
-            Métricas fundamentales de diagnóstico de paquetes: rendimiento, capacidad, anomalías de enrutamiento y diagnóstico.
-          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mt-4 md:mt-0">
+          <button 
+            onClick={handleLoadAnalysis}
+            className="flex items-center gap-2 border px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors bg-white border-[#E2E8F0] text-slate-700 hover:bg-[#F1F5F9]"
+          >
+            <span className="material-symbols-outlined text-[18px]">folder_open</span>
+            Cargar Análisis
+          </button>
           <button 
             onClick={toggleMonitoring}
             className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors ${isMonitoring ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-white border-[#E2E8F0] text-slate-700 hover:bg-[#F1F5F9]'}`}
@@ -477,22 +517,24 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
               <h3 className="font-bold text-sm text-[#0F172A]">Prueba de Conectividad (Ping)</h3>
             </div>
 
-            <form onSubmit={handleStartPing} className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4">
               <input
                 type="text"
                 placeholder="Ingrese IP o Hostname de destino (ej. 8.8.8.8)"
                 value={pingTarget}
                 onChange={(e) => setPingTarget(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleStartPing(e)}
                 disabled={pingStatus === 'testing'}
                 className="flex-1 bg-[#F1F5F9] border-none rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-[#1E293B] placeholder-[#94A3B8] font-sans"
               />
               <button
-                type="submit"
+                type="button"
+                onClick={handleStartPing}
                 className={`text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 transition-all cursor-pointer font-sans ${pingStatus === 'testing' ? 'bg-red-500' : 'bg-primary'}`}
               >
                 {pingStatus === 'testing' ? 'Detener Prueba' : 'Iniciar Prueba'}
               </button>
-            </form>
+            </div>
 
             <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4">
               <div className="flex justify-between text-[11px] font-mono text-[#64748B] mb-3 pb-1 border-b border-[#E2E8F0] select-none">
@@ -539,23 +581,25 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ searchQuery })
               <h3 className="font-bold text-sm text-[#0F172A]">Traza de Ruta</h3>
             </div>
 
-            <form onSubmit={handleStartTrace} className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4">
               <input
                 type="text"
                 placeholder="Ingrese hostname de destino (ej. google.com)"
                 value={traceTarget}
                 onChange={(e) => setTraceTarget(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleStartTrace(e)}
                 disabled={traceStatus === 'tracing'}
                 className="flex-1 bg-[#F1F5F9] border-none rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-[#1E293B] placeholder-[#94A3B8] font-sans"
               />
               <button
-                type="submit"
+                type="button"
+                onClick={handleStartTrace}
                 disabled={traceStatus === 'tracing'}
                 className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer font-sans"
               >
                 {traceStatus === 'tracing' ? 'Rastreando' : 'Trazar Ruta'}
               </button>
-            </form>
+            </div>
 
             <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 h-[220px] overflow-y-auto">
               {traceHops.length > 0 ? (

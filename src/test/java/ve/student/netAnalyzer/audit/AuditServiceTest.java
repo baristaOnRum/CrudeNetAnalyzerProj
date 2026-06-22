@@ -1,18 +1,18 @@
-package ve.student.netAnalyzer.event;
+package ve.student.netAnalyzer.audit;
 
-import ve.student.netAnalyzer.service.EventServiceImpl;
+import ve.student.netAnalyzer.service.AuditServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import ve.student.netAnalyzer.model.Event;
+import ve.student.netAnalyzer.model.Audit;
 import ve.student.netAnalyzer.model.AppUser;
 import ve.student.netAnalyzer.model.ExportFormat;
-import ve.student.netAnalyzer.dto.EventDto;
-import ve.student.netAnalyzer.dto.EventFilter;
-import ve.student.netAnalyzer.repository.EventRepository;
+import ve.student.netAnalyzer.dto.AuditDto;
+import ve.student.netAnalyzer.dto.AuditFilter;
+import ve.student.netAnalyzer.repository.AuditRepository;
 import ve.student.netAnalyzer.repository.UserRepository;
 
 import java.util.Arrays;
@@ -22,16 +22,16 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-public class EventServiceTest {
+public class AuditServiceTest {
 
     @Mock
-    private EventRepository repository;
+    private AuditRepository repository;
 
     @Mock
     private UserRepository userRepository;
 
     @InjectMocks
-    private EventServiceImpl service;
+    private AuditServiceImpl service;
 
     @BeforeEach
     void setUp() {
@@ -39,46 +39,46 @@ public class EventServiceTest {
     }
 
     @Test
-    void testRegisterEvent_Success() {
-        EventDto dto = new EventDto();
+    void testRegisterAudit_Success() {
+        AuditDto dto = new AuditDto();
         dto.setIdSesion("SES-001");
-        dto.setNombreEvento("LOGIN");
+        dto.setNombreAuditoria("LOGIN");
         dto.setIdUsuario(1L);
         
         AppUser mockUser = new AppUser();
         mockUser.setId(1L);
         
         when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
-        when(repository.save(any(Event.class))).thenAnswer(i -> i.getArgument(0));
+        when(repository.save(any(Audit.class))).thenAnswer(i -> i.getArgument(0));
 
-        Event result = service.registerEvent(dto);
+        Audit result = service.registerAudit(dto);
         assertEquals("SES-001", result.getIdSesion());
-        assertEquals("LOGIN", result.getNombreEvento());
+        assertEquals("LOGIN", result.getNombreAuditoria());
         assertNotNull(result.getUsuario());
-        verify(repository, times(1)).save(any(Event.class));
+        verify(repository, times(1)).save(any(Audit.class));
     }
 
     @Test
-    void testListEvents_Pagination() {
-        Event e1 = new Event(); e1.setNombreEvento("LOGIN");
-        Event e2 = new Event(); e2.setNombreEvento("LOGOUT");
+    void testListAudits_Pagination() {
+        Audit e1 = new Audit(); e1.setNombreAuditoria("LOGIN");
+        Audit e2 = new Audit(); e2.setNombreAuditoria("LOGOUT");
         
         when(repository.findAll()).thenReturn(Arrays.asList(e1, e2));
         
-        EventFilter filter = new EventFilter();
-        filter.setNombreEvento("LOGIN");
+        AuditFilter filter = new AuditFilter();
+        filter.setNombreAuditoria("LOGIN");
         
-        List<Event> result = service.listEvents(filter);
+        List<Audit> result = service.listAudits(filter);
         assertEquals(1, result.size());
-        assertEquals("LOGIN", result.get(0).getNombreEvento());
+        assertEquals("LOGIN", result.get(0).getNombreAuditoria());
     }
 
     @Test
-    void testExportEvent_AsCsv() {
-        Event e1 = new Event(); e1.setIdSesion("SES-1"); e1.setNombreEvento("TEST");
+    void testExportAudit_AsCsv() {
+        Audit e1 = new Audit(); e1.setIdSesion("SES-1"); e1.setNombreAuditoria("TEST");
         when(repository.findById("SES-1")).thenReturn(Optional.of(e1));
         
-        byte[] result = service.exportEvent("SES-1", ExportFormat.CSV);
+        byte[] result = service.exportAudit("SES-1", ExportFormat.CSV);
         assertTrue(result.length > 0);
         String strResult = new String(result);
         assertTrue(strResult.contains("TEST"));

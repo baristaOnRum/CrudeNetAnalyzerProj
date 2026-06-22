@@ -1,6 +1,8 @@
 {
-  "name": "Nombre Pendiente",
+  "name": "Sistema de Asistencia al Monitoreo y Auditoria",
   "description": "Analizador avanzado de paquetes de red y consola de gestión de seguridad del sistema",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

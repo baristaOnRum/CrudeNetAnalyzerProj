@@ -1,17 +1,16 @@
-package ve.student.netAnalyzer.event;
+package ve.student.netAnalyzer.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ve.student.netAnalyzer.dto.EventDto;
-import ve.student.netAnalyzer.dto.EventFilter;
-import ve.student.netAnalyzer.model.Event;
-import ve.student.netAnalyzer.service.EventService;
+import ve.student.netAnalyzer.dto.AuditDto;
+import ve.student.netAnalyzer.dto.AuditFilter;
+import ve.student.netAnalyzer.model.Audit;
+import ve.student.netAnalyzer.service.AuditService;
 
 import java.util.List;
 
@@ -25,43 +24,43 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class EventControllerFunctionalTest {
+class AuditControllerFunctionalTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private EventService eventService;
+    private AuditService auditService;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     @Test
-    void testListEvents() throws Exception {
-        Event event = new Event();
-        event.setNombreEvento("Test Event");
+    void testListAudits() throws Exception {
+        Audit audit = new Audit();
+        audit.setNombreAuditoria("Test Audit");
 
-        when(eventService.listEvents(any(EventFilter.class))).thenReturn(List.of(event));
+        when(auditService.listAudits(any(AuditFilter.class))).thenReturn(List.of(audit));
 
-        mockMvc.perform(get("/api/events"))
+        mockMvc.perform(get("/api/audits"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].nombreEvento").value("Test Event"));
+                .andExpect(jsonPath("$[0].nombreAuditoria").value("Test Audit"));
     }
 
     @Test
-    void testRegisterEvent() throws Exception {
-        EventDto dto = new EventDto();
-        dto.setNombreEvento("Login");
+    void testRegisterAudit() throws Exception {
+        AuditDto dto = new AuditDto();
+        dto.setNombreAuditoria("Login");
 
-        Event savedEvent = new Event();
-        savedEvent.setNombreEvento("Login");
+        Audit savedAudit = new Audit();
+        savedAudit.setNombreAuditoria("Login");
 
-        when(eventService.registerEvent(any(EventDto.class))).thenReturn(savedEvent);
+        when(auditService.registerAudit(any(AuditDto.class))).thenReturn(savedAudit);
 
-        mockMvc.perform(post("/api/events")
+        mockMvc.perform(post("/api/audits")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nombreEvento").value("Login"));
+                .andExpect(jsonPath("$.nombreAuditoria").value("Login"));
     }
 }

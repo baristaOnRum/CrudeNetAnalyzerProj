@@ -35,11 +35,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Análisis */}
         <button
           onClick={() => onViewChange('dashboard')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${
-            currentView === 'dashboard'
+          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'dashboard'
               ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
               : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[20px]">dashboard</span>
           <span className="text-sm">Análisis</span>
@@ -48,11 +47,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Reportes */}
         <button
           onClick={() => onViewChange('reports')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${
-            currentView === 'reports'
+          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'reports'
               ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
               : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[20px]">analytics</span>
           <span className="text-sm">Reportes</span>
@@ -60,25 +58,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Ver Registros */}
         <button
-          onClick={() => onViewChange('logs')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${
-            currentView === 'logs'
+          onClick={() => onViewChange('audits')}
+          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'audits'
               ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
               : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-          <span className="text-sm">Ver Registros</span>
+          <span className="text-sm">Auditorías</span>
         </button>
 
         {/* Gestionar Usuarios */}
         <button
           onClick={() => onViewChange('users')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${
-            currentView === 'users'
+          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'users'
               ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
               : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[20px]">group</span>
           <span className="text-sm">Gestionar Usuarios</span>
@@ -87,11 +83,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Administrar Paquetes */}
         <button
           onClick={() => onViewChange('packets')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${
-            currentView === 'packets'
+          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'packets'
               ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
               : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[20px]">inventory_2</span>
           <span className="text-sm">Administrar Paquetes</span>
@@ -100,11 +95,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Settings */}
         <button
           onClick={() => onViewChange('settings')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${
-            currentView === 'settings'
+          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'settings'
               ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
               : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[20px]">settings</span>
           <span className="text-sm">Configuración</span>
@@ -123,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {userRole}
             </p>
           </div>
-          <button 
+          <button
             onClick={() => {
               if (window.confirm("¿Está seguro de que desea cerrar la sesión y cerrar la conexión?")) {
                 onLogout();

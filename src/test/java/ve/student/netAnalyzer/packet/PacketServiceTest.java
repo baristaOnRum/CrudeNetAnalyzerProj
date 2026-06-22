@@ -29,6 +29,9 @@ public class PacketServiceTest {
     @Mock
     private AnalisisRedRepository analisisRedRepository;
 
+    @Mock
+    private ve.student.netAnalyzer.service.SessionManagerService sessionManagerService;
+
     @InjectMocks
     private PacketServiceImpl service;
 

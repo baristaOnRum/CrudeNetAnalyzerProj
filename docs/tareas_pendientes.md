@@ -115,18 +115,37 @@ Se han filtrado y marcado de forma visible las tareas estrictamente necesarias p
 
 ### Tareas Prioritarias
 
-| Código | Tarea / Acción | Justificación de Prioridad |
-| :--- | :--- | :--- |
-| **T-1.8** | 🚨 **Limpieza de marcadores** | Un documento con texto de relleno (ej. "asfsadsadfl") o comentarios sin resolver es rechazado en la primera revisión. |
-| **T-1.2** | ✅ ~~**Rediseñar Portada**~~ | Es el primer filtro formal de presentación. |
-| **T-1.3** | ✅ ~~**Corregir fecha de Portada**~~ | Fechas incorrectas restan validez a la entrega actual. |
-| **T-1.5** | ✅ ~~**Ajustar bloque del Resumen**~~ | El resumen es la sección principal que leen los evaluadores para comprender el proyecto completo. |
-| **T-4.1** | 🚨 **Completar Figura: Casos de Uso Actual** | Presentar figuras faltantes o nombradas como "Figura x" demuestra un documento incompleto. |
-| **T-4.2** | 🚨 **Completar Figura: Ishikawa** | Esta figura sustenta el diagnóstico y justifica la necesidad del sistema. |
-| **T-5.2** | ✅ ~~**Simplificar y unificar RF**~~ | Los Requerimientos Funcionales definen el alcance exacto del MVP. |
-| **T-5.5** | 🚨 **Diagramas de Casos de Uso Propuesta** | Representan la conexión visual entre la documentación escrita y el software a evaluar. |
-| **T-5.7** | 🚨 **Diagrama E-R (Entidad-Relación)** | Arquitectura de datos necesaria para validar el diseño técnico. |
-| **T-7.1** | 🚨 **Construcción del Backend (Spring)** | Componente esencial para procesar la lógica de negocio del MVP. |
-| **T-7.2** | 🚨 **Construcción del Frontend y Rutas** | Medio de interacción obligatorio para que el usuario o jurado evalúe el MVP. |
-| **T-7.3** | 🚨 **Despliegue y Creación de BD** | Infraestructura de almacenamiento necesaria para demostrar operaciones reales de entrada y salida de datos. |
-| **T-8.4** | 🚨 **Ajustar Conclusiones** | La revisión de consistencia requiere que cada conclusión responda de forma directa a un objetivo específico planteado. |
+| Código | Estado | Origen | Tarea / Acción | Justificación de Prioridad |
+| :--- | :--- | :--- | :--- | :--- |
+| **T-1.8** | 🔴 Pendiente | Obs. #21, #25 | **Limpieza de marcadores** | Un documento con texto de relleno (ej. "asfsadsadfl") o comentarios sin resolver es rechazado en la primera revisión. |
+| **T-1.2** | 🟢 Completado | Obs. #2 | ~~**Rediseñar Portada**~~ | Es el primer filtro formal de presentación. |
+| **T-1.3** | 🟢 Completado | Obs. #2 | ~~**Corregir fecha de Portada**~~ | Fechas incorrectas restan validez a la entrega actual. |
+| **T-1.5** | 🟢 Completado | Obs. #5 | ~~**Ajustar bloque del Resumen**~~ | El resumen es la sección principal que leen los evaluadores para comprender el proyecto completo. |
+| **T-4.1** | 🔴 Pendiente | Obs. #11 | **Completar Figura: Casos de Uso Actual** | Presentar figuras faltantes o nombradas como "Figura x" demuestra un documento incompleto. |
+| **T-4.2** | 🔴 Pendiente | Obs. #12 | **Completar Figura: Ishikawa** | Esta figura sustenta el diagnóstico y justifica la necesidad del sistema. |
+| **T-5.2** | 🟢 Completado | Obs. #14 | ~~**Simplificar y unificar RF**~~ | Los Requerimientos Funcionales definen el alcance exacto del MVP. |
+| **T-5.5** | 🔴 Pendiente | Obs. #17 | **Diagramas de Casos de Uso Propuesta** | Representan la conexión visual entre la documentación escrita y el software a evaluar. |
+| **T-5.7** | 🔴 Pendiente | Obs. #18 | **Diagrama E-R (Entidad-Relación)** | Arquitectura de datos necesaria para validar el diseño técnico. |
+| **T-7.1** | 🔴 Pendiente | Cuaderno 1 | **Construcción del Backend (Spring)** | Componente esencial para procesar la lógica de negocio del MVP. |
+| **T-7.2** | 🔴 Pendiente | Cuaderno 1 | **Construcción del Frontend y Rutas** | Medio de interacción obligatorio para que el usuario o jurado evalúe el MVP. |
+| **T-7.3** | 🔴 Pendiente | Cuaderno 1, 2 | **Despliegue y Creación de BD** | Infraestructura de almacenamiento necesaria para demostrar operaciones reales de entrada y salida de datos. |
+| **T-8.4** | 🔴 Pendiente | Obs. #22 | **Ajustar Conclusiones** | La revisión de consistencia requiere que cada conclusión responda de forma directa a un objetivo específico planteado. |
+
+### Consolidado de Actividades: Documentación y Sistema
+
+| Código | Estado | Categoría | Tarea / Acción | Detalles Adicionales |
+| :--- | :--- | :--- | :--- | :--- |
+| **C-1** | 🟢 Completado | Documentación | ~~**Expandir Resumen**~~ | Ampliar a 300 palabras. |
+| **C-2** | 🟢 Completado | Documentación | ~~**Expandir Introducción**~~ | Mencionar conclusiones y recomendaciones. |
+| **C-3** | 🟢 Completado | Documentación | ~~**Casos de Uso (C.U.)**~~ | Arreglar la descripción del caso de uso y describir los C.U. |
+| **C-4** | 🔴 Pendiente | Documentación | **Modelado de Datos** | Creación de base de datos (DB) para el modelado de datos, específicamente el diccionario de datos. |
+| **C-5** | 🔴 Pendiente | Documentación | **Pruebas** | Ajustar Pruebas Unitarias por cada componente de la vista. Especificar pruebas funcionales de front-end y requerimientos funcionales per se. |
+| **C-6** | 🔴 Pendiente | Documentación | **Manual de Usuario** | Desarrollo de redacción del manual de usuario. |
+| **C-7** | 🔴 Pendiente | Documentación | **Propósito** | Cambiar propósito. |
+| **C-8** | 🟢 Completado | Sistema | ~~**Navegación y Vistas**~~ | Arreglar la navegación y trabajar en las vistas en construcción. |
+| **C-9** | 🟢 Completado | Sistema | ~~**Monitoreo y Alertas**~~ | Mejorar las alertas. Configurar alertas para monitoreo. |
+| **C-10** | 🔴 Pendiente | Sistema | **Reportes** | Configurar reportes por rango de fecha, ID de sesión, y filtros por IP y protocolo. |
+| **C-11** | 🔴 Pendiente | Sistema | **Estadísticas** | Generar estadísticas incluyendo diagrama de Pareto y diagrama de torta. |
+| **C-12** | 🟢 Completado | Sistema | ~~**Terminología**~~ | Cambiar el término "Eventos" por "Auditorías". |
+| **C-13** | 🔴 Pendiente | Sistema | **Interfaz de Usuario (UI)** | Los campos obligatorios deben llevar asterisco. Añadir visualizadores de carga. |
+| **C-14** | 🔴 Pendiente | Sistema | **Configuración** | Configurar los plugins. |

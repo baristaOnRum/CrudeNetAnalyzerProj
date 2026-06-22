@@ -2,8 +2,10 @@ spring:
   application:
     name: netAnalyzer
   datasource:
-    url: jdbc:sqlite:netanalyzer.db
+    url: jdbc:h2:mem:testdb
     driver-class-name: org.sqlite.JDBC
+    username: sa
+    password: password
   jpa:
     hibernate:
       ddl-auto: update

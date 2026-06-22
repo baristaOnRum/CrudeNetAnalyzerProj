@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type AppView = 'uplink' | 'dashboard' | 'reports' | 'logs' | 'users' | 'settings' | 'packets';
+export type AppView = 'uplink' | 'dashboard' | 'reports' | 'audits' | 'users' | 'settings' | 'packets';
 
 export interface Packet {
   id: string;

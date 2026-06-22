@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { sourceId: string; role: string; token: string }) => void;
@@ -24,7 +25,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
 
     setStatus('connecting');
-    setLogs(['[SISTEMA] Inicializando protocolo de enlace de Nombre Pendiente...']);
+    setLogs(['[SISTEMA] Inicializando protocolo de enlace de Sistema de Asistencia al Monitoreo y Auditoria...']);
 
     // Simulate SSL handshake and sequence authorization
     const steps = [
@@ -48,9 +49,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         
         if (response.ok) {
           const data = await response.json();
-          // Assuming backend might not return full role yet, use fallback based on name or 'admin'
           const role = sourceId === 'admin' ? 'ADMINISTRADOR (Nivel 4)' : 'ANALISTA (Nivel 3)';
-          const token = `SESSION-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+          const token = data.token; // Guardar el token validado desde el backend
           setLogs((prev) => [...prev, '[SEGURIDAD] Enlace de cifrado TLS 1.3 completado. Acceso PERMITIDO.']);
           setStatus('success');
           setTimeout(() => {
@@ -77,7 +77,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] font-sans flex items-center justify-center gap-2">
             <span className="material-symbols-outlined text-primary text-3xl">shield_lock</span>
-            Nombre Pendiente
+            Sistema de Asistencia al Monitoreo y Auditoria
           </h1>
         </div>
 
@@ -130,7 +130,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <div className="flex justify-end mt-1">
                 <button 
                   type="button"
-                  onClick={() => alert('Credenciales de acceso sugeridas: Identificador del sistema es "SYS-01-LOCAL", la clave de acceso puede ser cualquier clave.')}
+                  onClick={() => Swal.fire({ text: 'Credenciales de acceso sugeridas: Identificador del sistema es "SYS-01-LOCAL", la clave de acceso puede ser cualquier clave.', icon: 'info', confirmButtonColor: '#4F46E5' })}
                   className="font-sans text-[9px] font-semibold text-[#818cf8] hover:text-primary transition-colors uppercase cursor-pointer"
                 >
                   Resolver Clave
@@ -186,7 +186,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <p className="text-xs text-[#64748B]">
             ¿Terminal virtual no registrado? 
             <button 
-              onClick={() => alert("Credenciales sugeridas: identificador 'SYS-01-LOCAL', elija cualquier clave de acceso para obtener acceso raíz.")} 
+              onClick={() => Swal.fire({ text: "Credenciales sugeridas: identificador 'SYS-01-LOCAL', elija cualquier clave de acceso para obtener acceso raíz.", icon: 'info', confirmButtonColor: '#4F46E5' })} 
               className="text-primary font-bold hover:underline ml-1 cursor-pointer"
             >
               Solicitar Acceso

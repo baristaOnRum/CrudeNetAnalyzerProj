@@ -3,8 +3,11 @@ package ve.student.netAnalyzer.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "analisis_red")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class AnalisisRed {
 
     @Id

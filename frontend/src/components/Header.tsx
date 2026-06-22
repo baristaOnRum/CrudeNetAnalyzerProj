@@ -6,6 +6,8 @@
 import React, { useState } from 'react';
 import { AppView } from '../types';
 
+import Swal from 'sweetalert2';
+
 interface HeaderProps {
   currentView: AppView;
   searchQuery: string;
@@ -13,9 +15,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  currentView,
-  searchQuery,
-  onSearchChange
+  currentView
 }) => {
   const [showSystemInfo, setShowSystemInfo] = useState(false);
 
@@ -23,41 +23,25 @@ export const Header: React.FC<HeaderProps> = ({
   const getHeaderTitle = () => {
     switch (currentView) {
       case 'dashboard':
-        return 'Análisis de Red';
+        return 'Análisis';
       case 'reports':
-        return 'Generar Reportes';
+        return 'Reportes';
       case 'logs':
-        return 'Explorador de Registros';
+        return 'Trazas del sistema';
       case 'users':
         return 'Gestionar Usuarios';
       case 'packets':
         return 'Administrar Paquetes';
       case 'settings':
-        return 'Configuración del Sistema';
+        return 'Configuración';
       default:
-        return 'Analizador "Nombre Pendiente"';
+        return 'Analizador "Sistema de Asistencia al Monitoreo y Auditoria"';
     }
   };
 
   // Derive subtitle/badge format based on view
   const getSubBadge = () => {
     return null;
-  };
-
-  // Search input placeholder text helper
-  const getSearchPlaceholder = () => {
-    switch (currentView) {
-      case 'packets':
-        return 'Buscar Paquetes...';
-      case 'reports':
-        return 'Buscar sesiones...';
-      case 'users':
-        return 'Buscar recursos de sistema...';
-      case 'logs':
-        return 'Buscar registros de diagnóstico...';
-      default:
-        return 'Buscar recursos, archivos o tareas...';
-    }
   };
 
   return (
@@ -73,19 +57,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-6">
-        {/* Search Input bar */}
-        <div className="relative group select-none">
-          <input
-            type="text"
-            placeholder={getSearchPlaceholder()}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-[#F1F5F9] border-none rounded-full pl-5 pr-10 py-1.5 text-[13px] w-64 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-[#1E293B] placeholder-[#94A3B8] font-sans"
-          />
-          <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] text-[18px]">
-            search
-          </span>
-        </div>
 
         {/* Quick Diagnostics Actions */}
         <div className="flex items-center gap-3 relative select-none">
@@ -105,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dev-board Quick Status logs toggle - Changed to a real button with icon and text */}
           <button 
             id="btn_details_connection"
-            onClick={() => alert("Chequeo de diagnóstico: Niveles de encriptación óptimos, AES-256 habilitado, 0 pérdidas de integridad detectadas.")}
+            onClick={() => Swal.fire({ text: "Chequeo de diagnóstico: Niveles de encriptación óptimos, AES-256 habilitado, 0 pérdidas de integridad detectadas.", icon: 'info', confirmButtonColor: '#4F46E5' })}
             className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm"
             title="Detalles de Conexión del Sistema"
           >
