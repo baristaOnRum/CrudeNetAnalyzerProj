@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'settings':
         return 'Configuración';
       default:
-        return 'Analizador "Sistema de Asistencia al Monitoreo y Auditoria"';
+        return '';
     }
   };
 
@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Quick Diagnostics Actions */}
         <div className="flex items-center gap-3 relative select-none">
           {/* Hardware CPU Metrics Button */}
-          <button 
+          <button
             id="btn_cpu_metrics"
             onClick={() => {
               setShowSystemInfo(!showSystemInfo);
@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Dev-board Quick Status logs toggle - Changed to a real button with icon and text */}
-          <button 
+          <button
             id="btn_details_connection"
             onClick={() => Swal.fire({ text: "Chequeo de diagnóstico: Niveles de encriptación óptimos, AES-256 habilitado, 0 pérdidas de integridad detectadas.", icon: 'info', confirmButtonColor: '#4F46E5' })}
             className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm"
@@ -89,9 +89,9 @@ export const Header: React.FC<HeaderProps> = ({
             <div id="panel_hardware_status" className="absolute right-0 top-12 bg-white border border-[#E2E8F0] shadow-xl rounded-xl p-4 w-72 z-50 text-xs text-[#1E293B] animate-[bounceIn_0.2s_ease-out]">
               <div className="flex justify-between items-center pb-2 border-b border-[#F1F5F9]">
                 <span className="font-bold text-[#0F172A]">Estado de Hardware Virtual</span>
-                <button 
+                <button
                   id="btn_close_system_info"
-                  onClick={() => setShowSystemInfo(false)} 
+                  onClick={() => setShowSystemInfo(false)}
                   className="text-[#64748B] hover:text-red-500 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">close</span>

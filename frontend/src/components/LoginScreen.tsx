@@ -14,30 +14,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [sourceId, setSourceId] = useState('SYS-01-LOCAL');
   const [password, setPassword] = useState('ADMIN-ACCESS-SECRET-KEY');
   const [status, setStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
-  const [logs, setLogs] = useState<string[]>([]);
-
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
     if (!sourceId || !password) {
       setStatus('error');
-      setLogs(['[ERROR] Falló la conexión: Faltan parámetros.']);
       return;
     }
 
     setStatus('connecting');
-    setLogs(['[SISTEMA] Inicializando protocolo de enlace de Sistema de Asistencia al Monitoreo y Auditoria...']);
-
-    // Simulate SSL handshake and sequence authorization
-    const steps = [
-      { text: '[SISTEMA] Iniciando protocolo seguro AES-256-GCM...', delay: 250 },
-      { text: '[AUTORIZACIÓN] Validando firma de clave de acceso con dominio principal...', delay: 550 },
-    ];
-
-    steps.forEach((step) => {
-      setTimeout(() => {
-        setLogs((prev) => [...prev, step.text]);
-      }, step.delay);
-    });
 
     setTimeout(async () => {
       try {
@@ -51,17 +35,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           const data = await response.json();
           const role = sourceId === 'admin' ? 'ADMINISTRADOR (Nivel 4)' : 'ANALISTA (Nivel 3)';
           const token = data.token; // Guardar el token validado desde el backend
-          setLogs((prev) => [...prev, '[SEGURIDAD] Enlace de cifrado TLS 1.3 completado. Acceso PERMITIDO.']);
           setStatus('success');
           setTimeout(() => {
             onLoginSuccess({ sourceId, role, token });
           }, 600);
         } else {
-          setLogs((prev) => [...prev, '[ERROR] Credenciales inválidas. Acceso denegado.']);
           setStatus('error');
         }
       } catch (err) {
-        setLogs((prev) => [...prev, '[ERROR] Falló la conexión con el servidor.']);
         setStatus('error');
       }
     }, 850);
@@ -94,7 +75,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             {/* System Identifier */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-sans font-bold text-[#64748B] uppercase flex justify-between tracking-wider" htmlFor="source_id">
-                Identificador del Sistema
+                <span>Identificador del Sistema {status === 'error' && (!sourceId || (sourceId && password)) && <span className="text-red-500 text-[12px] ml-1">*</span>}</span>
                 <span className="material-symbols-outlined text-[14px]">router</span>
               </label>
               <input 
@@ -102,10 +83,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 name="source_id"
                 type="text"
                 placeholder="ej. SYS-01-LOCAL"
-                required
+                required={false}
                 disabled={status === 'connecting' || status === 'success'}
                 value={sourceId}
-                onChange={(e) => setSourceId(e.target.value)}
+                onChange={(e) => { setSourceId(e.target.value); setStatus('idle'); }}
                 className="w-full bg-[#F1F5F9] border-none focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-2.5 font-mono text-xs text-[#1E293B] transition-all duration-150 outline-none placeholder-[#94A3B8]"
               />
             </div>
@@ -113,7 +94,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             {/* Access Key */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-sans font-bold text-[#64748B] uppercase flex justify-between tracking-wider" htmlFor="password">
-                Clave de Acceso
+                <span>Clave de Acceso {status === 'error' && (!password || (sourceId && password)) && <span className="text-red-500 text-[12px] ml-1">*</span>}</span>
                 <span className="material-symbols-outlined text-[14px]">key</span>
               </label>
               <input 
@@ -121,10 +102,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 name="password"
                 type="password"
                 placeholder="••••••••••••••••"
-                required
+                required={false}
                 disabled={status === 'connecting' || status === 'success'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setStatus('idle'); }}
                 className="w-full bg-[#F1F5F9] border-none focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-2.5 font-mono text-xs text-[#1E293B] transition-all duration-150 outline-none placeholder-[#94A3B8]"
               />
               <div className="flex justify-end mt-1">
@@ -138,17 +119,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* Interactive Terminal log on handshake */}
-            {logs.length > 0 && (
-              <div className="bg-[#0F172A] text-[#818cf8] font-mono text-[11px] p-4 rounded-lg border border-[#1e293b] space-y-1 max-h-[140px] overflow-y-auto">
-                {logs.map((log, i) => (
-                  <div key={i} className={log.startsWith('[ERROR]') ? 'text-red-400' : log.startsWith('[SEGURIDAD]') ? 'text-green-400' : ''}>
-                    {log}
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Submit Action Button */}
             <button 
               type="submit"
@@ -157,24 +127,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 status === 'success' 
                   ? 'bg-green-600 text-white' 
                   : status === 'connecting'
-                    ? 'bg-primary/50 text-white/80 cursor-not-allowed'
+                    ? 'bg-black text-white cursor-wait'
                     : 'bg-primary text-white hover:bg-opacity-95 active:scale-[0.98]'
               }`}
             >
               {status === 'connecting' ? (
                 <>
                   <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                  Establecer Enlace
+                  Iniciando sesión...
                 </>
               ) : status === 'success' ? (
                 <>
                   <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                  Acceso Permitido
+                  Sesión Iniciada
                 </>
               ) : (
                 <>
-                  Establecer Enlace
-                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">bolt</span>
+                  Iniciar sesión
+                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform text-[18px]">login</span>
                 </>
               )}
             </button>
