@@ -676,12 +676,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">Tráfico {s.name}</p>
-                  <h3 className={`text-2xl font-bold mt-1 font-sans ${isMonitoring ? 'text-primary' : 'text-slate-300'}`}>
-                    {isMonitoring ? s.count : '--'} Pkts
+                  <h3 className={`text-2xl font-bold mt-1 font-sans ${(isMonitoring || activeAnalysisId) ? 'text-primary' : 'text-slate-300'}`}>
+                    {(isMonitoring || activeAnalysisId) ? s.count : '--'} Pkts
                   </h3>
                 </div>
-                <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border uppercase ${isMonitoring ? 'bg-[#F0FDF4] text-[#166534] border-[#D1FAE5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
-                  {isMonitoring ? 'Activo' : 'Esperando'}
+                <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border uppercase ${(isMonitoring || activeAnalysisId) ? 'bg-[#F0FDF4] text-[#166534] border-[#D1FAE5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
+                  {(isMonitoring || activeAnalysisId) ? 'Activo' : 'Esperando'}
                 </span>
               </div>
             </div>
@@ -694,32 +694,32 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         <div className="p-5 border-b border-[#E2E8F0] bg-white flex justify-between items-center select-none">
           <div className="flex items-center gap-3">
             <h3 className="font-bold text-base text-[#0F172A]">Análisis de Distribución de Protocolos</h3>
-            <span className={`text-[10px] font-mono tracking-widest px-2.5 py-0.5 rounded font-bold uppercase border ${isMonitoring ? 'bg-[#F0FDF4] text-[#166534] border-[#D1FAE5]' : 'bg-slate-100 text-slate-400 border-[#E2E8F0]'}`}>
-              {isMonitoring ? 'Registrando en Vivo' : 'Sin datos activos'}
+            <span className={`text-[10px] font-mono tracking-widest px-2.5 py-0.5 rounded font-bold uppercase border ${(isMonitoring || activeAnalysisId) ? 'bg-[#F0FDF4] text-[#166534] border-[#D1FAE5]' : 'bg-slate-100 text-slate-400 border-[#E2E8F0]'}`}>
+              {isMonitoring ? 'Registrando en Vivo' : (activeAnalysisId ? 'Visualizando Histórico' : 'Sin datos activos')}
             </span>
           </div>
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center p-8 gap-8">
-          <div className={`relative w-72 h-72 flex-shrink-0 select-none ${isMonitoring ? '' : 'opacity-50'}`}>
+          <div className={`relative w-72 h-72 flex-shrink-0 select-none ${(isMonitoring || activeAnalysisId) ? '' : 'opacity-50'}`}>
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
               <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#F1F5F9" strokeWidth="3" />
-              {isMonitoring && packetStats.total > 0 && protocolSlices.map((s, i) => (
+              {(isMonitoring || activeAnalysisId) && packetStats.total > 0 && protocolSlices.map((s, i) => (
                 <circle key={i} cx="18" cy="18" fill="transparent" r="15.915" stroke={s.color} strokeWidth="3" strokeDasharray={s.dasharray} strokeDashoffset={s.offset} />
               ))}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className={`text-4xl font-extrabold ${isMonitoring ? 'text-[#0F172A]' : 'text-slate-300'}`}>
-                {isMonitoring ? packetStats.total : '--'}
+              <span className={`text-4xl font-extrabold ${(isMonitoring || activeAnalysisId) ? 'text-[#0F172A]' : 'text-slate-300'}`}>
+                {(isMonitoring || activeAnalysisId) ? packetStats.total : '--'}
               </span>
-              <span className={`text-[10px] font-mono tracking-wider font-bold uppercase mt-1 ${isMonitoring ? 'text-[#64748B]' : 'text-slate-400'}`}>
+              <span className={`text-[10px] font-mono tracking-wider font-bold uppercase mt-1 ${(isMonitoring || activeAnalysisId) ? 'text-[#64748B]' : 'text-slate-400'}`}>
                 Total Pkts
               </span>
             </div>
           </div>
 
           <div className="flex-1 max-w-xl flex items-center justify-center border border-[#E2E8F0] rounded-xl bg-white min-h-[200px] shadow-sm">
-            {isMonitoring ? (
+            {(isMonitoring || activeAnalysisId) ? (
               <div className="w-full p-6 space-y-4">
                 {protocolSlices.map((s, i) => (
                   <div key={i} className="flex justify-between items-center group hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors">
@@ -1186,6 +1186,31 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           </table>
         </div>
       </section>
+
+      {/* Modal para Cargar Análisis */}
+      <Modal
+        isOpen={isLoadAnalysisModalOpen}
+        onClose={() => setIsLoadAnalysisModalOpen(false)}
+        title="Cargar Sesión de Análisis"
+        subtitle="Selecciona una sesión pasada para ver sus estadísticas"
+        icon="history"
+      >
+        <div className="space-y-4 font-sans p-2 max-h-[60vh] overflow-y-auto">
+          {availableAnalyses.map(session => (
+            <div key={session.id} className="flex justify-between items-center p-3 border border-[#E2E8F0] rounded-xl hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => handleLoadAnalysis(session)}>
+              <div>
+                <div className="font-semibold text-sm text-slate-800">Sesión #{session.id}</div>
+                <div className="text-xs text-slate-500">{session.fechaEjecucion?.replace('T', ' ').substring(0, 19)}</div>
+              </div>
+              <span className="material-symbols-outlined text-primary text-[20px]">chevron_right</span>
+            </div>
+          ))}
+          {availableAnalyses.length === 0 && (
+            <div className="text-center text-slate-500 text-sm py-4">No hay sesiones disponibles.</div>
+          )}
+        </div>
+      </Modal>
+
     </div>
   );
 };
