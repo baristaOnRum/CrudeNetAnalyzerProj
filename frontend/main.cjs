@@ -3,6 +3,14 @@ const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 
+// Evitar que el proceso main muera por promesas no capturadas
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Electron Main] Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (error) => {
+  console.error('[Electron Main] Uncaught Exception:', error);
+});
+
 let mainWindow;
 let javaServerProcess;
 
@@ -22,6 +30,29 @@ function createWindow() {
   });
 
   mainWindow.loadURL(FRONTEND_URL);
+
+  // Si el renderer crashea, recargarlo en vez de mostrar pantalla blanca
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('[Electron] Renderer process gone. Reason:', details.reason, '| Exit code:', details.exitCode);
+    if (details.reason !== 'clean-exit') {
+      console.warn('[Electron] Reloading renderer...');
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.reload();
+        }
+      }, 1000);
+    }
+  });
+
+  // Si el renderer se congela, recargarlo
+  mainWindow.webContents.on('unresponsive', () => {
+    console.warn('[Electron] Renderer unresponsive, reloading...');
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.reload();
+      }
+    }, 3000);
+  });
 
   mainWindow.on('closed', function () {
     mainWindow = null;

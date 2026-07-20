@@ -10,6 +10,7 @@ public interface AnalysisService {
     void monitorPacketBehavior();
     AnalysisResult analyzePacketsOnInterface(String interfaceId);
     String registerNetworkInterface(InterfaceDto dto);
+    InterfaceDto getActiveInterface();
     List<AnalisisRed> listAnalyses();
     org.springframework.data.domain.Page<AnalisisRed> getAnalyses(int page, int size);
     AnalisisRed registerAnalysis(AnalysisDto data);

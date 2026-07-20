@@ -14,6 +14,7 @@ import ve.student.netAnalyzer.service.capture.PacketCaptureService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AnalysisServiceImpl implements AnalysisService {
@@ -21,15 +22,17 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final AnalisisRedRepository repository;
     private final SessionManagerService sessionManagerService;
     private final PacketCaptureService packetCaptureService;
+    private final ve.student.netAnalyzer.service.DiagnosticsService diagnosticsService;
 
     private final ve.student.netAnalyzer.repository.PacketRepository packetRepository;
 
     @Autowired
-    public AnalysisServiceImpl(AnalisisRedRepository repository, SessionManagerService sessionManagerService, PacketCaptureService packetCaptureService, ve.student.netAnalyzer.repository.PacketRepository packetRepository) {
+    public AnalysisServiceImpl(AnalisisRedRepository repository, SessionManagerService sessionManagerService, PacketCaptureService packetCaptureService, ve.student.netAnalyzer.repository.PacketRepository packetRepository, ve.student.netAnalyzer.service.DiagnosticsService diagnosticsService) {
         this.repository = repository;
         this.sessionManagerService = sessionManagerService;
         this.packetCaptureService = packetCaptureService;
         this.packetRepository = packetRepository;
+        this.diagnosticsService = diagnosticsService;
     }
 
     @Override
@@ -45,6 +48,17 @@ public class AnalysisServiceImpl implements AnalysisService {
                 analysisId = (long) sessionManagerService.getActiveAnalysis().getId();
             }
             packetCaptureService.startCapture(interfaceId, analysisId);
+            
+            // Inyectar un ping y traceroute al inicio del análisis (si no es interfaz USB)
+            if (interfaceId != null && !interfaceId.toLowerCase().contains("usbpcap")) {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        diagnosticsService.executePing("8.8.8.8");
+                        diagnosticsService.executeTraceroute("8.8.8.8");
+                    } catch (Exception ignored) {}
+                });
+            }
+            
             return new AnalysisResult(1L, interfaceId, "Iniciado", 0);
         } catch (Exception e) {
             throw new RuntimeException("Error al iniciar captura en interfaz: " + interfaceId, e);
@@ -53,7 +67,13 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public String registerNetworkInterface(InterfaceDto dto) {
-        return dto.getInterfaceId();
+        sessionManagerService.setActiveInterface(dto);
+        return dto.getNombreInterfaz();
+    }
+
+    @Override
+    public InterfaceDto getActiveInterface() {
+        return sessionManagerService.getActiveInterface();
     }
 
     @Override

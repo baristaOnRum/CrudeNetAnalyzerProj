@@ -1,22 +1,29 @@
 package ve.student.netAnalyzer.dto;
 
 public class InterfaceDto {
-    private String interfaceId;
-    private String name;
-    private String status;
+    private String nombreInterfaz;
+    private String macAddress;
+    private String ipAddress;
+    private Long idAnalisis;
 
     public InterfaceDto() {}
 
-    public InterfaceDto(String interfaceId, String name, String status) {
-        this.interfaceId = interfaceId;
-        this.name = name;
-        this.status = status;
+    public InterfaceDto(String nombreInterfaz, String macAddress, String ipAddress, Long idAnalisis) {
+        this.nombreInterfaz = nombreInterfaz;
+        this.macAddress = macAddress;
+        this.ipAddress = ipAddress;
+        this.idAnalisis = idAnalisis;
     }
 
-    public String getInterfaceId() { return interfaceId; }
-    public void setInterfaceId(String interfaceId) { this.interfaceId = interfaceId; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getNombreInterfaz() { return nombreInterfaz; }
+    public void setNombreInterfaz(String nombreInterfaz) { this.nombreInterfaz = nombreInterfaz; }
+    
+    public String getMacAddress() { return macAddress; }
+    public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
+    
+    public String getIpAddress() { return ipAddress; }
+    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+    
+    public Long getIdAnalisis() { return idAnalisis; }
+    public void setIdAnalisis(Long idAnalisis) { this.idAnalisis = idAnalisis; }
 }

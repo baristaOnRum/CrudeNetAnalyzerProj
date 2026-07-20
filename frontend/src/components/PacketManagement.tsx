@@ -22,6 +22,7 @@ interface PacketManagementProps {
   activeAnalysisId: number | null;
 }
 
+const PROTOCOLS = ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS', 'DNS', 'ARP', 'TLS', 'SSH', 'DHCP'];
 
 
 export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalysisId }) => {
@@ -43,8 +44,12 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
   const [totalPages, setTotalPages] = useState(1);
 
   const fetchPackets = async (page = 0) => {
+    if (!activeAnalysisId) {
+      setPackets([]);
+      return;
+    }
     try {
-      const res = await fetch(`/api/packets?page=${page}&size=100`);
+      const res = await fetch(`/api/packets?idAnalisis=${activeAnalysisId}&page=${page}&size=100`);
       if (res.ok) {
         const data = await res.json();
         const rawList = data.content ?? data;
@@ -274,30 +279,36 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] text-[13px] font-medium text-[#1E293B]">
-              {filteredPackets.map((pkt) => (
-                <tr key={pkt.id} className="hover:bg-[#F8FAFC] animate-[fadeIn_0.1s_ease-out]">
-                  <td className="p-4 pl-6 text-[#64748B]">{pkt.timestamp}</td>
-                  <td className="p-4 font-semibold text-[#0F172A]">{pkt.sourceIp}</td>
-                  <td className="p-4 text-[#1E293B]">{pkt.destIp}</td>
-                  <td className="p-4"><span className={`px-2.5 py-0.5 rounded-full text-[11px] font-sans font-semibold tracking-wide ${getBadge(pkt.protocol)} border`}>{pkt.protocol}</span></td>
-                  <td className="p-4 text-right font-semibold">{pkt.length}</td>
-                  <td className="p-4 text-right pr-6">
-                    <button
-                      onClick={() => setSelectedPacket(pkt)}
-                      className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-primary border border-primary/20 rounded-md text-xs font-sans font-semibold flex items-center justify-end gap-1 ml-auto transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[15px]">visibility</span>
-                      Ver Detalle
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredPackets.length === 0 && (
+              {!activeAnalysisId ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[#64748B] font-sans text-xs">
-                    No se encontraron paquetes para los filtros actuales.
+                  <td colSpan={6} className="p-8 text-center text-slate-500 bg-slate-50 italic">
+                    <span className="material-symbols-outlined text-4xl text-slate-300 block mb-2">lock</span>
+                    Por favor, seleccione o inicie una sesión en el panel de Análisis para ver sus paquetes.
                   </td>
                 </tr>
+              ) : filteredPackets.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500 italic">No hay paquetes que coincidan con los filtros.</td>
+                </tr>
+              ) : (
+                filteredPackets.map((pkt) => (
+                  <tr key={pkt.id} className="hover:bg-[#F8FAFC] animate-[fadeIn_0.1s_ease-out]">
+                    <td className="p-4 pl-6 text-[#64748B]">{pkt.timestamp}</td>
+                    <td className="p-4 font-semibold text-[#0F172A]">{pkt.sourceIp}</td>
+                    <td className="p-4 text-[#1E293B]">{pkt.destIp}</td>
+                    <td className="p-4"><span className={`px-2.5 py-0.5 rounded-full text-[11px] font-sans font-semibold tracking-wide ${getBadge(pkt.protocol)} border`}>{pkt.protocol}</span></td>
+                    <td className="p-4 text-right font-semibold">{pkt.length}</td>
+                    <td className="p-4 text-right pr-6">
+                      <button
+                        onClick={() => setSelectedPacket(pkt)}
+                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-primary border border-primary/20 rounded-md text-xs font-sans font-semibold flex items-center justify-end gap-1 ml-auto transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">visibility</span>
+                        Ver Detalle
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

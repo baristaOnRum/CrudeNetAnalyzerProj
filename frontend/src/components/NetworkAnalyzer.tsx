@@ -10,9 +10,11 @@ import { Modal } from './common/Modal';
 interface NetworkAnalyzerProps {
   activeAnalysisId: number | null;
   setActiveAnalysisId: (id: number) => void;
+  isMonitoring: boolean;
+  setIsMonitoring: (val: boolean) => void;
 }
 
-export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysisId: propAnalysisId, setActiveAnalysisId: setPropAnalysisId }) => {
+export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysisId: propAnalysisId, setActiveAnalysisId: setPropAnalysisId, isMonitoring, setIsMonitoring }) => {
   // Device management modal state
   const [isDevicesModalOpen, setIsDevicesModalOpen] = useState(false);
   const [devicesList, setDevicesList] = useState<any[]>([]);
@@ -35,14 +37,40 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
   // Interface registration modal state
   const [isInterfaceModalOpen, setIsInterfaceModalOpen] = useState(false);
-  const [interfaceData, setInterfaceData] = useState({ idAnalisis: activeAnalysisId || 1, nombreInterfaz: '1', macAddress: '00:00:00:00:00:00', ipAddress: '0.0.0.0' });
+  const [isUsbInterface, setIsUsbInterface] = useState(false);
+  const [interfaceData, setInterfaceData] = useState<any>({ idAnalisis: activeAnalysisId || '', nombreInterfaz: '', macAddress: '', ipAddress: '0.0.0.0' });
   const [availableInterfaces, setAvailableInterfaces] = useState<{name: string, mac: string}[]>([]);
   const [packetStream, setPacketStream] = useState<any[]>([]);
+  const [pendingAnalysisAction, setPendingAnalysisAction] = useState<'pasivo' | 'activo' | null>(null);
+
+  // Speed Test config modal state
+  const [isSpeedTestModalOpen, setIsSpeedTestModalOpen] = useState(false);
+  const [speedTestProviders, setSpeedTestProviders] = useState<{id: string, displayName: string, targetHost: string}[]>([]);
+  const [speedTestConfig, setSpeedTestConfig] = useState<{
+    provider: string;
+    testType: string;
+    sizeBytes: number;
+    customMb: string;
+  }>({
+    provider: 'CLOUDFLARE',
+    testType: 'DOWNLOAD',
+    sizeBytes: 10_000_000,
+    customMb: ''
+  });
+  const [speedTestRunning, setSpeedTestRunning] = useState(false);
+  const [speedTestResult, setSpeedTestResult] = useState<any>(null);
 
   // Monitoring states
-  const [isMonitoring, setIsMonitoring] = useState(false);
   const [packetStats, setPacketStats] = useState<any>({ total: 0, protocols: {} });
   const [trafficMetrics, setTrafficMetrics] = useState({ pps: 0, mbps: 0, loss: 0 });
+  // Promedio de métricas al finalizar una sesión de análisis activo
+  const [sessionAvgMetrics, setSessionAvgMetrics] = useState<{ pps: number; mbps: number; loss: number } | null>(null);
+  const metricsAccRef = useRef<{ ppsSum: number; mbpsSum: number; lossSum: number; ticks: number }>({
+    ppsSum: 0, mbpsSum: 0, lossSum: 0, ticks: 0
+  });
+  // Flag separado para el polling interno del análisis activo (speedtest)
+  // isMonitoring queda reservado EXCLUSIVAMENTE para el monitoreo pasivo
+  const [isActiveCapturing, setIsActiveCapturing] = useState(false);
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Incremental fetching refs
@@ -84,15 +112,27 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       if (response.ok) {
         const data = await response.json();
         setAvailableInterfaces(data);
-        if (data.length > 0) {
-          let selectedId = data[0].name.split('.')[0];
-          let mac = data[0].mac;
-          const wifiIface = data.find((i: any) => i.name.toLowerCase().includes('wi-fi') || i.name.toLowerCase().includes('wifi'));
-          if (wifiIface) {
-            selectedId = wifiIface.name.split('.')[0];
-            mac = wifiIface.mac;
+        
+        try {
+          const activeResp = await fetch('/api/analysis/interface');
+          if (activeResp.status === 200) {
+            const activeData = await activeResp.json();
+            if (activeData && activeData.nombreInterfaz) {
+              setInterfaceData((prev: any) => ({
+                ...prev,
+                nombreInterfaz: activeData.nombreInterfaz,
+                macAddress: activeData.macAddress,
+                ipAddress: activeData.ipAddress || '0.0.0.0',
+                idAnalisis: activeData.idAnalisis || ''
+              }));
+            } else {
+              setInterfaceData((prev: any) => ({ ...prev, nombreInterfaz: '', macAddress: '', idAnalisis: '' }));
+            }
+          } else {
+            setInterfaceData((prev: any) => ({ ...prev, nombreInterfaz: '', macAddress: '', idAnalisis: '' }));
           }
-          setInterfaceData(prev => ({ ...prev, nombreInterfaz: selectedId, macAddress: mac, ipAddress: '0.0.0.0' }));
+        } catch (err) {
+          console.error('No active interface found', err);
         }
       }
     } catch (e) {
@@ -132,6 +172,13 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
   };
 
   const handleRegisterInterface = async () => {
+    if (!interfaceData.nombreInterfaz) {
+      Swal.fire('Atención', 'Por favor seleccione una interfaz primero', 'warning');
+      return;
+    }
+
+    setIsUsbInterface(interfaceData.nombreInterfaz.toLowerCase().includes('usbpcap'));
+    
     try {
       const response = await fetch('/api/analysis/interface', {
         method: 'POST',
@@ -142,24 +189,66 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         })
       });
       if (response.ok) {
-        Swal.fire('Éxito', 'Interfaz de red vinculada al análisis', 'success');
         setIsInterfaceModalOpen(false);
+        
+        if (pendingAnalysisAction === 'pasivo') {
+          Swal.fire('Éxito', 'Interfaz vinculada', 'success');
+          await executeStartPasivo();
+          setPendingAnalysisAction(null);
+        } else if (pendingAnalysisAction === 'activo') {
+          // 1. Crear sesión de análisis activo en el backend
+          let newAnalysisId = activeAnalysisId;
+          if (!newAnalysisId) {
+            try {
+              const analysisRes = await fetch('/api/analysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre: 'Análisis Activo' })
+              });
+              if (analysisRes.ok) {
+                const analysisData = await analysisRes.json();
+                handleSetActiveAnalysisId(analysisData.id);
+                newAnalysisId = analysisData.id;
+              }
+            } catch (_) {}
+          }
+          // 2. Cargar proveedores y abrir modal de configuración del speed test
+          try {
+            const provRes = await fetch('/api/analysis/active/providers');
+            if (provRes.ok) setSpeedTestProviders(await provRes.json());
+          } catch (_) {}
+          setSpeedTestResult(null);
+          setSpeedTestRunning(false);
+          setIsSpeedTestModalOpen(true);
+          // pendingAnalysisAction se limpia al ejecutar/cancelar el speed test
+        } else {
+          Swal.fire('Éxito', 'Interfaz de red vinculada', 'success');
+          setPendingAnalysisAction(null);
+        }
       } else {
         Swal.fire('Error', 'Fallo al vincular la interfaz', 'error');
+        setPendingAnalysisAction(null);
       }
     } catch (e) {
       Swal.fire('Error', 'Fallo de red al registrar interfaz', 'error');
+      setPendingAnalysisAction(null);
     }
   };
 
-  // Cleanup on unmount
+  // Cleanup on unmount, and resume polling if isMonitoring is true
   useEffect(() => {
     fetchInterfaces();
+    
+    if (isMonitoring) {
+      // Resume polling without starting a new backend session
+      monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
+    }
+    
     return () => {
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
     };
-  }, []);
+  }, [isMonitoring]);
 
   useEffect(() => {
     if (activeAnalysisId) {
@@ -223,7 +312,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           ? +((noResponse / data.length) * 100).toFixed(2)
           : 0;
 
+        // Siempre actualizar métricas, incluso si no llegan paquetes nuevos en este tick
         setTrafficMetrics({ pps, mbps, loss });
+
+        // Acumular para promedio al finalizar sesión
+        metricsAccRef.current.ppsSum += pps;
+        metricsAccRef.current.mbpsSum += mbps;
+        metricsAccRef.current.lossSum += loss;
+        metricsAccRef.current.ticks += 1;
       }
     } catch (e) {
       console.error('Failed to fetch packets for monitoring', e);
@@ -240,36 +336,56 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         console.error('Failed to stop backend capture', e);
       }
     } else {
-      try {
-        const response = await fetch('/api/analysis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombre: 'Monitoreo Pasivo' })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          handleSetActiveAnalysisId(data.id);
-          await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
-        }
-      } catch (e) {
-        console.error('Failed to create analysis session', e);
+      setPendingAnalysisAction('pasivo');
+      setIsInterfaceModalOpen(true);
+    }
+  };
+
+  const executeStartPasivo = async () => {
+    try {
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: 'Monitoreo Pasivo' })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        handleSetActiveAnalysisId(data.id);
+        await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
       }
-      setIsMonitoring(true);
-      monitoringStartRef.current = Date.now();
-      lastFetchTimestampRef.current = Date.now();
-      lastPacketIdRef.current = 0;
-      sessionProtocolsRef.current = {};
-      totalSessionPktsRef.current = 0;
-      
-      setPacketStream([]);
-      setPacketStats({ total: 0, protocols: {} });
-      setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
-      fetchPackets();
-      monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
+    } catch (e) {
+      console.error('Failed to create analysis session', e);
+    }
+    setIsMonitoring(true);
+    monitoringStartRef.current = Date.now();
+    lastFetchTimestampRef.current = Date.now();
+    lastPacketIdRef.current = 0;
+    sessionProtocolsRef.current = {};
+    totalSessionPktsRef.current = 0;
+    
+    setPacketStream([]);
+    setPacketStats({ total: 0, protocols: {} });
+    setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
+    fetchPackets();
+    monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
+    
+    // Iniciar diagnósticos base automáticamente en la UI
+    if (!isUsbInterface) {
+      setPingTarget('8.8.8.8');
+      setTraceTarget('8.8.8.8');
+      setTimeout(() => {
+        handleStartPing(undefined, '8.8.8.8');
+        handleStartTrace(undefined, '8.8.8.8');
+      }, 100);
     }
   };
 
   const handleStartActiveAnalysis = async () => {
+    setPendingAnalysisAction('activo');
+    setIsInterfaceModalOpen(true);
+  };
+
+  const executeStartActivo = async () => {
     try {
       const response = await fetch('/api/analysis', {
         method: 'POST',
@@ -282,7 +398,6 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         Swal.fire('Éxito', `Sesión de análisis activo ${data.id} iniciada`, 'success');
         await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
         
-        // Ensure frontend stream resets and listens to this new session
         if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
         setIsMonitoring(true);
         monitoringStartRef.current = Date.now();
@@ -297,6 +412,16 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         
         fetchPackets();
         monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
+        
+        // Iniciar diagnósticos base automáticamente en la UI
+        if (!isUsbInterface) {
+          setPingTarget('8.8.8.8');
+          setTraceTarget('8.8.8.8');
+          setTimeout(() => {
+            handleStartPing(undefined, '8.8.8.8');
+            handleStartTrace(undefined, '8.8.8.8');
+          }, 100);
+        }
       }
     } catch (e) {
       console.error('Failed to start active analysis', e);
@@ -429,9 +554,10 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
   const protocolSlices = getProtocolSlices();
 
-  const handleStartPing = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+  const handleStartPing = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent, overrideTarget?: string) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!pingTarget) return;
+    const target = overrideTarget || pingTarget;
+    if (!target) return;
 
     if (pingStatus === 'testing') {
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
@@ -453,7 +579,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     }
 
     setPingStatus('testing');
-    setPingLogs([`PING [${pingTarget}] with 32 bytes of data:`]);
+    setPingLogs([`PING [${target}] with 32 bytes of data:`]);
     setPingStats({ avgLatency: '--', loss: '0%' });
     latencyValuesRef.current = [];
     isPingingRef.current = false;
@@ -469,7 +595,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         const response = await fetch('/api/diagnostics/ping', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ target: pingTarget })
+          body: JSON.stringify({ target: target })
         });
         
         if (response.ok) {
@@ -490,7 +616,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             const total = latencyValuesRef.current.length + timeouts;
             const currentLoss = Math.round((timeouts / total) * 100);
             setPingStats(prev => ({ ...prev, loss: `${currentLoss}%` }));
-            setPingLogs((prev) => [...prev, `Request timed out for seq ${seq}. Target: ${pingTarget}`]);
+            setPingLogs((prev) => [...prev, `Request timed out for seq ${seq}. Target: ${target}`]);
           }
         }
       } catch (e) {
@@ -502,49 +628,41 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     }, 1500);
   };
 
-  const handleStartTrace = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
+  const handleStartTrace = async (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent, overrideTarget?: string) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!traceTarget) return;
+    const target = overrideTarget || traceTarget;
+    if (!target) return;
 
     setTraceStatus('tracing');
     setTraceHops([]);
 
-    const hopsData = [
-      { hop: 1, ip: '10.0.0.1', location: 'Local Gateway Interface', latency: 1 },
-      { hop: 2, ip: '192.168.1.1', location: 'Symmetric Border Router', latency: 3 },
-      { hop: 3, ip: '172.16.220.10', location: 'Autonomous System Transit Core', latency: 8 },
-      { hop: 4, ip: '142.250.190.46', location: 'Cloud Edge Server Destination', latency: 11 }
-    ];
+    try {
+      const response = await fetch('/api/diagnostics/traceroute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: target })
+      });
 
-    let currentHopIndex = 0;
-    const stepTrace = () => {
-      if (currentHopIndex < hopsData.length) {
-        setTraceHops((prev) => [...prev, hopsData[currentHopIndex]]);
-        
-        const hop = hopsData[currentHopIndex];
-        const payload = {
-          tipoPaquete: 'ICMP',
-          contenidos: `TRACE_HOP_${hop.hop}`,
-          fuente: '10.0.0.1', 
-          destino: hop.ip,
-          respuesta: 'TTL_EXCEEDED',
-          tiempoRespuesta: hop.latency,
-          idAnalisis: activeAnalysisId
-        };
-        fetch('/api/packets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(e => console.error(e));
-
-        currentHopIndex++;
-        setTimeout(stepTrace, 600);
-      } else {
-        setTraceStatus('complete');
+      if (!response.ok) {
+        throw new Error('Trace failed');
       }
-    };
 
-    setTimeout(stepTrace, 200);
+      const data = await response.json();
+      
+      const mappedHops = data.map((hop: any) => ({
+        hop: hop.hop,
+        ip: hop.ip || '*',
+        location: hop.timeout ? 'Request timed out' : (hop.hostname || 'Unknown'),
+        latency: hop.latency ?? 0
+      }));
+
+      setTraceHops(mappedHops);
+    } catch (err) {
+      console.error(err);
+      setTraceHops([{ hop: 1, ip: 'error', location: 'Trace failed to execute', latency: 0 }]);
+    } finally {
+      setTraceStatus('complete');
+    }
   };
 
   const handleOpenInterfaceModal = async () => {
@@ -595,13 +713,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         </div>
         <div className="flex items-center gap-3 mt-4 md:mt-0 flex-wrap">
 
-          <button 
-            onClick={handleOpenInterfaceModal}
-            className="flex items-center gap-2 border px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors bg-white border-[#E2E8F0] text-slate-700 hover:bg-[#F1F5F9]"
-          >
-            <span className="material-symbols-outlined text-[18px]">settings_ethernet</span>
-            Registrar Interfaz
-          </button>
+
                     <button 
                       onClick={toggleMonitoring}
                       className="px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 w-full md:w-auto shadow-sm"
@@ -635,7 +747,16 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Paquetes / Segundo</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">{isMonitoring || activeAnalysisId ? trafficMetrics.pps : '--'}</span>
+            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">
+              {(isMonitoring || isActiveCapturing)
+                ? trafficMetrics.pps
+                : sessionAvgMetrics
+                ? sessionAvgMetrics.pps
+                : activeAnalysisId ? trafficMetrics.pps : '--'}
+            </span>
+            {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
+              <span className="text-[10px] text-slate-400 mb-1 font-semibold tracking-wide uppercase">prom.</span>
+            )}
             <span className="text-sm text-[#64748B] mb-1 font-bold">pps</span>
           </div>
         </div>
@@ -646,7 +767,16 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Tasa de Datos</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">{isMonitoring || activeAnalysisId ? trafficMetrics.mbps : '--'}</span>
+            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">
+              {(isMonitoring || isActiveCapturing)
+                ? trafficMetrics.mbps
+                : sessionAvgMetrics
+                ? sessionAvgMetrics.mbps
+                : activeAnalysisId ? trafficMetrics.mbps : '--'}
+            </span>
+            {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
+              <span className="text-[10px] text-slate-400 mb-1 font-semibold tracking-wide uppercase">prom.</span>
+            )}
             <span className="text-sm text-[#64748B] mb-1 font-bold">Mbps</span>
           </div>
         </div>
@@ -657,7 +787,16 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Pérdida de Paquetes</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#F59E0B] font-mono">{isMonitoring || activeAnalysisId ? trafficMetrics.loss : '--'}</span>
+            <span className="text-3xl font-extrabold text-[#F59E0B] font-mono">
+              {(isMonitoring || isActiveCapturing)
+                ? trafficMetrics.loss
+                : sessionAvgMetrics
+                ? sessionAvgMetrics.loss
+                : activeAnalysisId ? trafficMetrics.loss : '--'}
+            </span>
+            {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
+              <span className="text-[10px] text-slate-400 mb-1 font-semibold tracking-wide uppercase">prom.</span>
+            )}
             <span className="text-sm text-[#64748B] mb-1 font-bold">%</span>
           </div>
         </div>
@@ -757,20 +896,28 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
               <h3 className="font-bold text-sm text-[#0F172A]">Prueba de Conectividad (Ping)</h3>
             </div>
 
+            {isUsbInterface && (
+              <div className="mb-4 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                <span>Herramienta inactiva: No aplicable a capturas de bus USB.</span>
+              </div>
+            )}
+
             <div className="flex gap-2 mb-4">
               <input
                 type="text"
                 placeholder="Ingrese IP o Hostname de destino (ej. 8.8.8.8)"
                 value={pingTarget}
                 onChange={(e) => setPingTarget(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleStartPing(e)}
-                disabled={pingStatus === 'testing'}
-                className="flex-1 bg-[#F1F5F9] border-none rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-[#1E293B] placeholder-[#94A3B8] font-sans"
+                onKeyDown={(e) => e.key === 'Enter' && !(!isMonitoring || pingStatus === 'testing' || isUsbInterface) && handleStartPing(e)}
+                disabled={pingStatus === 'testing' || !isMonitoring || isUsbInterface}
+                className="flex-1 bg-[#F1F5F9] border-none rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-[#1E293B] placeholder-[#94A3B8] font-sans disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
                 onClick={handleStartPing}
-                className={`text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 transition-all cursor-pointer font-sans ${pingStatus === 'testing' ? 'bg-red-500' : 'bg-primary'}`}
+                disabled={!isMonitoring || isUsbInterface}
+                className={`text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed ${pingStatus === 'testing' ? 'bg-red-500' : 'bg-primary'}`}
               >
                 {pingStatus === 'testing' ? 'Detener Prueba' : 'Iniciar Prueba'}
               </button>
@@ -819,21 +966,28 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
               <h3 className="font-bold text-sm text-[#0F172A]">Traza de Ruta</h3>
             </div>
 
+            {isUsbInterface && (
+              <div className="mb-4 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                <span>Herramienta inactiva: No aplicable a capturas de bus USB.</span>
+              </div>
+            )}
+
             <div className="flex gap-2 mb-4">
               <input
                 type="text"
                 placeholder="Ingrese hostname de destino (ej. google.com)"
                 value={traceTarget}
                 onChange={(e) => setTraceTarget(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleStartTrace(e)}
-                disabled={traceStatus === 'tracing'}
-                className="flex-1 bg-[#F1F5F9] border-none rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-[#1E293B] placeholder-[#94A3B8] font-sans"
+                onKeyDown={(e) => e.key === 'Enter' && !(!isMonitoring || traceStatus === 'tracing' || isUsbInterface) && handleStartTrace(e)}
+                disabled={traceStatus === 'tracing' || !isMonitoring || isUsbInterface}
+                className="flex-1 bg-[#F1F5F9] border-none rounded-lg px-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-[#1E293B] placeholder-[#94A3B8] font-sans disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
                 onClick={handleStartTrace}
-                disabled={traceStatus === 'tracing'}
-                className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 transition-all cursor-pointer font-sans"
+                disabled={traceStatus === 'tracing' || !isMonitoring || isUsbInterface}
+                className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-sans"
               >
                 {traceStatus === 'tracing' ? 'Rastreando' : 'Trazar Ruta'}
               </button>
@@ -1082,25 +1236,29 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       <Modal
         isOpen={isInterfaceModalOpen}
         onClose={() => setIsInterfaceModalOpen(false)}
-        title="Vincular Interfaz de Red"
+        title={pendingAnalysisAction === 'activo' ? 'Seleccionar Interfaz — Análisis Activo (Paso 1 de 2)' : 'Vincular Interfaz de Red'}
         size="md"
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">ID de Análisis Activo</label>
-            <input
-              type="number"
-              disabled={true}
-              value={interfaceData.idAnalisis}
-              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs font-mono text-slate-500 cursor-not-allowed"
-            />
-          </div>
+          {pendingAnalysisAction === 'activo' && (
+            <div className="flex items-start gap-2 bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+              <span className="material-symbols-outlined text-indigo-500 text-[18px] mt-0.5">info</span>
+              <p className="text-xs text-indigo-700">
+                Selecciona una interfaz de red <strong>Ethernet o Wi-Fi</strong>. Las interfaces USB no están disponibles para análisis activo.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Interfaz</label>
             <select
               value={interfaceData.nombreInterfaz}
               onChange={(e) => {
                 const selectedId = e.target.value;
+                if (!selectedId) {
+                  setInterfaceData({ ...interfaceData, nombreInterfaz: '', macAddress: '' });
+                  return;
+                }
                 const selectedIface = availableInterfaces.find(iface => iface.name.startsWith(`${selectedId}.`));
                 setInterfaceData({ 
                   ...interfaceData, 
@@ -1110,11 +1268,28 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
               }}
               className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs text-slate-800 cursor-pointer"
             >
+              <option value="" disabled>Seleccione una interfaz...</option>
               {availableInterfaces.length === 0 && <option value="1">1. Default Interface</option>}
-              {availableInterfaces.map(iface => {
-                const id = iface.name.split('.')[0];
-                return <option key={id} value={id}>{iface.name}</option>;
-              })}
+              {availableInterfaces
+                .filter(iface => {
+                  // En modo análisis activo, excluir interfaces USB/USBPcap
+                  if (pendingAnalysisAction === 'activo') {
+                    const lc = iface.name.toLowerCase();
+                    return !lc.includes('usbpcap') && !lc.includes('usb');
+                  }
+                  return true;
+                })
+                .map(iface => {
+                  const id = iface.name.split('.')[0];
+                  let friendlyName = iface.name;
+                  const match = iface.name.match(/\(([^)]+)\)/);
+                  if (match) {
+                    friendlyName = match[1];
+                  } else {
+                    friendlyName = iface.name.replace(/^\d+\.\s*/, '');
+                  }
+                  return <option key={id} value={id}>{id}. {friendlyName}</option>;
+                })}
             </select>
           </div>
           <div>
@@ -1128,7 +1303,10 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button
-              onClick={() => setIsInterfaceModalOpen(false)}
+              onClick={() => {
+                setIsInterfaceModalOpen(false);
+                setPendingAnalysisAction(null);
+              }}
               className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-semibold text-slate-700"
             >
               Cancelar
@@ -1140,6 +1318,202 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
               Vincular Interfaz
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Speed Test Config Modal */}
+      <Modal
+        isOpen={isSpeedTestModalOpen}
+        onClose={() => {
+          setIsSpeedTestModalOpen(false);
+          setPendingAnalysisAction(null);
+        }}
+        title="Configurar Análisis Activo"
+        size="md"
+      >
+        <div className="space-y-5">
+          {!speedTestResult && (
+            <>
+              {/* Proveedor */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Proveedor / Servicio</label>
+                <select
+                  value={speedTestConfig.provider}
+                  onChange={e => {
+                    setSpeedTestConfig(prev => ({ ...prev, provider: e.target.value }));
+                  }}
+                  className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs text-slate-800 cursor-pointer"
+                  disabled={speedTestRunning}
+                >
+                  {speedTestProviders.length > 0
+                    ? speedTestProviders.map(p => (
+                        <option key={p.id} value={p.id}>{p.displayName}</option>
+                      ))
+                    : <option value="CLOUDFLARE">Cloudflare Speed Test</option>
+                  }
+                </select>
+                {/* Host objetivo derivado del proveedor (solo informativo) */}
+                {speedTestProviders.find(p => p.id === speedTestConfig.provider) && (
+                  <p className="text-[11px] text-slate-400 mt-1 font-mono">
+                    Host: {speedTestProviders.find(p => p.id === speedTestConfig.provider)!.targetHost}
+                  </p>
+                )}
+              </div>
+
+              {/* Tipo de prueba */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Prueba</label>
+                <div className="flex gap-3">
+                  {['DOWNLOAD', 'UPLOAD'].map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setSpeedTestConfig(prev => ({ ...prev, testType: t }))}
+                      disabled={speedTestRunning}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                        speedTestConfig.testType === t
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {t === 'DOWNLOAD' ? '↓ Descarga' : '↑ Subida'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tamaño del payload */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Tamaño del Payload</label>
+                <div className="flex gap-2 flex-wrap">
+                  {[1, 5, 10, 25, 50, 100].map(mb => (
+                    <button
+                      key={mb}
+                      onClick={() => setSpeedTestConfig(prev => ({ ...prev, sizeBytes: mb * 1_000_000, customMb: '' }))}
+                      disabled={speedTestRunning}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                        speedTestConfig.sizeBytes === mb * 1_000_000 && !speedTestConfig.customMb
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      } disabled:opacity-50`}
+                    >
+                      {mb} MB
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    placeholder="MB personalizado..."
+                    value={speedTestConfig.customMb || ''}
+                    disabled={speedTestRunning}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSpeedTestConfig(prev => ({
+                        ...prev,
+                        customMb: val,
+                        sizeBytes: val ? Number(val) * 1_000_000 : prev.sizeBytes
+                      }));
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-[#F1F5F9] border-none rounded-lg text-xs text-slate-800 placeholder-slate-400"
+                  />
+                  <span className="text-xs text-slate-500">MB</span>
+                </div>
+              </div>
+
+              {speedTestRunning && (
+                <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+                  <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-indigo-700 font-medium">Ejecutando prueba y capturando tráfico en tiempo real...</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => { setIsSpeedTestModalOpen(false); setPendingAnalysisAction(null); }}
+                  disabled={speedTestRunning}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-semibold text-slate-700 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={speedTestRunning}
+                  onClick={async () => {
+                    if (!activeAnalysisId) {
+                      Swal.fire('Atención', 'No hay una sesión de análisis activa', 'warning');
+                      return;
+                    }
+                    setSpeedTestRunning(true);
+
+                    // Iniciar polling ANTES de la prueba (sin tocar isMonitoring del pasivo)
+                    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+                    setIsActiveCapturing(true);
+                    monitoringStartRef.current = Date.now();
+                    lastFetchTimestampRef.current = Date.now();
+                    lastPacketIdRef.current = 0;
+                    sessionProtocolsRef.current = {};
+                    totalSessionPktsRef.current = 0;
+                    // Resetear acumulador de promedios
+                    metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, ticks: 0 };
+                    setSessionAvgMetrics(null);
+                    setPacketStream([]);
+                    setPacketStats({ total: 0, protocols: {} });
+                    setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
+                    monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
+
+                    try {
+                      const res = await fetch('/api/analysis/active/speedtest', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          provider: speedTestConfig.provider,
+                          testType: speedTestConfig.testType,
+                          sizeBytes: speedTestConfig.sizeBytes,
+                          interfaceName: interfaceData.nombreInterfaz,
+                          // Usar ref en lugar de state para evitar race condition
+                          // cuando el estado de React aún no se ha propagado al closure
+                          analysisId: activeAnalysisIdRef.current
+                        })
+                      });
+                      if (res.ok) {
+                        // Detener polling y calcular promedios de la sesión
+                        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+                        setIsActiveCapturing(false);
+                        const acc = metricsAccRef.current;
+                        if (acc.ticks > 0) {
+                          setSessionAvgMetrics({
+                            pps: +(acc.ppsSum / acc.ticks).toFixed(2),
+                            mbps: +(acc.mbpsSum / acc.ticks).toFixed(4),
+                            loss: +(acc.lossSum / acc.ticks).toFixed(2),
+                          });
+                        }
+                        // Cerrar modal automáticamente al terminar
+                        setIsSpeedTestModalOpen(false);
+                        setPendingAnalysisAction(null);
+                      } else {
+                        const errText = await res.text();
+                        // Detener polling si hubo error
+                        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+                        setIsActiveCapturing(false);
+                        Swal.fire('Error', `La prueba falló: ${errText}`, 'error');
+                      }
+                    } catch (e) {
+                      if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+                      setIsActiveCapturing(false);
+                      Swal.fire('Error', 'No se pudo conectar con el backend', 'error');
+                    } finally {
+                      setSpeedTestRunning(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-primary hover:bg-opacity-90 rounded-lg text-xs font-semibold text-white disabled:opacity-50 flex items-center gap-2"
+                >
+                  {speedTestRunning && <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />}
+                  Iniciar Prueba
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 

@@ -3,13 +3,17 @@ package ve.student.netAnalyzer.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ve.student.netAnalyzer.dto.ActiveAnalysisRequest;
+import ve.student.netAnalyzer.dto.ActiveAnalysisResult;
 import ve.student.netAnalyzer.dto.AnalysisDto;
 import ve.student.netAnalyzer.dto.AnalysisResult;
 import ve.student.netAnalyzer.dto.InterfaceDto;
 import ve.student.netAnalyzer.model.AnalisisRed;
 import ve.student.netAnalyzer.service.AnalysisService;
+import ve.student.netAnalyzer.service.speedtest.ActiveAnalysisService;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 
 @RestController
@@ -19,9 +23,21 @@ public class AnalysisController {
     @Autowired
     private AnalysisService analysisService;
 
+    @Autowired
+    private ActiveAnalysisService activeAnalysisService;
+
     @PostMapping("/interface")
     public ResponseEntity<String> registerInterface(@RequestBody InterfaceDto dto) {
         return ResponseEntity.ok(analysisService.registerNetworkInterface(dto));
+    }
+
+    @GetMapping("/interface")
+    public ResponseEntity<InterfaceDto> getActiveInterface() {
+        InterfaceDto active = analysisService.getActiveInterface();
+        if (active == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(active);
     }
 
     @GetMapping("/interfaces")
@@ -69,6 +85,30 @@ public class AnalysisController {
     @GetMapping("/{id}")
     public ResponseEntity<AnalisisRed> loadAnalysis(@PathVariable Long id) {
         return ResponseEntity.ok(analysisService.loadAnalysis(id));
+    }
+
+    /** Devuelve la lista de proveedores de speed test disponibles para el frontend */
+    @GetMapping("/active/providers")
+    public ResponseEntity<List<Map<String, String>>> getSpeedTestProviders() {
+        return ResponseEntity.ok(activeAnalysisService.getAvailableProviders());
+    }
+
+    /**
+     * Ejecuta un análisis activo completo:
+     * 1. Inicia Tshark con filtro BPF en la interfaz indicada.
+     * 2. Ejecuta la prueba HTTP al proveedor seleccionado.
+     * 3. Detiene Tshark y devuelve métricas.
+     */
+    @PostMapping("/active/speedtest")
+    public ResponseEntity<?> runActiveSpeedTest(@RequestBody ActiveAnalysisRequest request) {
+        try {
+            ActiveAnalysisResult result = activeAnalysisService.executeActiveAnalysis(request);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
     @ExceptionHandler(RuntimeException.class)

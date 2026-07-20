@@ -147,7 +147,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
     <div className="space-y-6 font-sans mt-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 select-none">
         <h3 className="font-bold text-lg text-slate-900">Gestión de Cuentas y Operadores</h3>
-        {currentUserRole.includes('ADMIN') && (
+        {currentUserRole.toUpperCase().includes('ADMINISTRADOR') && (
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-primary hover:bg-opacity-95 text-white px-5 py-2.5 rounded-xl font-bold text-xs tracking-wide flex items-center gap-2 shadow-md shadow-primary/20 hover:shadow-lg transition-all cursor-pointer group"
@@ -210,7 +210,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
                       >
                         Ver Detalle
                       </button>
-                      {currentUserRole.includes('ADMIN') && (
+                      {currentUserRole.toUpperCase().includes('ADMINISTRADOR') && (
                         <>
                           <button
                             onClick={() => handleStartEdit(op)}
@@ -250,7 +250,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
             { label: 'Rol de Seguridad', value: selectedUser.role },
             { label: 'Estado de Cuenta', value: 'ACTIVO / ACCESO HABILITADO' }
           ]}
-          actions={currentUserRole.includes('ADMIN') ? [
+          actions={currentUserRole.toUpperCase().includes('ADMINISTRADOR') ? [
             {
               label: 'Editar Perfil',
               icon: 'edit',
@@ -296,9 +296,9 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
                 onChange={(e) => setEditRole(e.target.value as any)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none"
               >
-                <option value="ADMIN">ADMINISTRADOR (Nivel 4 Raíz)</option>
-                <option value="ANALYST">ANALISTA (Nivel 3 Escritura)</option>
-                <option value="VIEWER">OBSERVADOR (Nivel 1 Lectura)</option>
+                <option value="ADMIN">Administrador</option>
+                <option value="ANALYST">Analista</option>
+                <option value="VIEWER">Observador</option>
               </select>
             </div>
 
@@ -366,9 +366,9 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
                 onChange={(e) => setNewRole(e.target.value as any)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none"
               >
-                <option value="ADMIN">ADMINISTRADOR (Nivel 4 Raíz)</option>
-                <option value="ANALYST">ANALISTA (Nivel 3 Escritura)</option>
-                <option value="VIEWER">OBSERVADOR (Nivel 1 Lectura)</option>
+                <option value="ADMIN">Administrador</option>
+                <option value="ANALYST">Analista</option>
+                <option value="VIEWER">Observador</option>
               </select>
             </div>
 

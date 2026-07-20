@@ -3,19 +3,31 @@ package ve.student.netAnalyzer.service;
 import org.springframework.stereotype.Service;
 import ve.student.netAnalyzer.dto.PacketDto;
 import ve.student.netAnalyzer.dto.PingResponseDto;
+import ve.student.netAnalyzer.dto.TraceHopDto;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import ve.student.netAnalyzer.repository.DiagnosticPacketRepository;
+import ve.student.netAnalyzer.model.DiagnosticPacket;
+import ve.student.netAnalyzer.model.AnalisisRed;
+import java.time.LocalDateTime;
 
 @Service
 public class DiagnosticsServiceImpl implements DiagnosticsService {
 
     private final PacketService packetService;
+    private final SessionManagerService sessionManagerService;
+    private final DiagnosticPacketRepository diagnosticPacketRepository;
 
-    public DiagnosticsServiceImpl(PacketService packetService) {
+    public DiagnosticsServiceImpl(PacketService packetService, SessionManagerService sessionManagerService, DiagnosticPacketRepository diagnosticPacketRepository) {
         this.packetService = packetService;
+        this.sessionManagerService = sessionManagerService;
+        this.diagnosticPacketRepository = diagnosticPacketRepository;
     }
 
     @Override
@@ -24,7 +36,6 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
         response.setSuccess(false);
 
         try {
-            // Windows ping command: ping -n 1 target
             ProcessBuilder pb = new ProcessBuilder("ping", "-n", "1", target);
             Process process = pb.start();
 
@@ -33,13 +44,10 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
             String line;
             Integer latency = null;
             Integer ttl = null;
-            String ip = target; // fallback
-            
-            // Typical Windows ping output for success:
-            // Reply from 8.8.8.8: bytes=32 time=14ms TTL=115
+            String ip = target;
+
             Pattern replyPattern = Pattern.compile("Reply from (.*?): bytes=.*? time[=<](\\d+)ms TTL=(\\d+)", Pattern.CASE_INSENSITIVE);
-            // Sometimes it matches time<1ms, so we handle = or <
-            
+
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
                 Matcher m = replyPattern.matcher(line);
@@ -52,13 +60,12 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
             }
 
             process.waitFor();
-            
+
             response.setIp(ip);
             response.setLatency(latency);
             response.setTtl(ttl);
             response.setRawOutput(output.toString().trim());
 
-            // Register packet in DB
             PacketDto packet = new PacketDto();
             packet.setTipoPaquete("ICMP");
             packet.setFuente("Local");
@@ -68,15 +75,125 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
                 packet.setRespuesta("Echo Reply (TTL=" + ttl + ")");
                 packet.setTiempoRespuesta(latency);
             } else {
-                packet.setRespuesta(null); // Lost packet
+                packet.setRespuesta(null);
                 packet.setTiempoRespuesta(null);
             }
             packetService.registerPacket(packet);
+
+            AnalisisRed analisis = sessionManagerService.getActiveAnalysis();
+            DiagnosticPacket dp = new DiagnosticPacket();
+            dp.setComponente("PING");
+            dp.setTipoPaquete(packet.getTipoPaquete());
+            dp.setFuente(packet.getFuente());
+            dp.setDestino(packet.getDestino());
+            dp.setContenidos(packet.getContenidos());
+            dp.setRespuesta(packet.getRespuesta());
+            dp.setTiempoRespuesta(packet.getTiempoRespuesta());
+            dp.setTimestamp(LocalDateTime.now());
+            dp.setAnalisisRed(analisis);
+            diagnosticPacketRepository.save(dp);
 
         } catch (Exception e) {
             response.setRawOutput("Failed to execute ping: " + e.getMessage());
         }
 
         return response;
+    }
+
+    /**
+     * Ejecuta tracert (Windows) y devuelve la lista de saltos parseados.
+     * Líneas típicas de tracert en Windows (CP850):
+     *   1    <1 ms    <1 ms    <1 ms  192.168.1.1
+     *   2     8 ms     7 ms     8 ms  10.200.1.1
+     *   3     *        *        *     Tiempo de espera agotado.
+     */
+    @Override
+    public List<TraceHopDto> executeTraceroute(String target) {
+        List<TraceHopDto> hops = new ArrayList<>();
+
+        try {
+            // -d: no resolver DNS (más rápido), -w 2000: timeout 2s por salto
+            ProcessBuilder pb = new ProcessBuilder("tracert", "-d", "-w", "2000", target);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            // tracert usa codepage CP850 en Windows
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), "CP850")
+            );
+
+            // Detectar número de salto al inicio de la línea
+            Pattern linePattern   = Pattern.compile("^\\s*(\\d+)\\b(.*)$");
+            Pattern timeoutPattern = Pattern.compile("(?:timed out|agotado|\\* +\\* +\\*)", Pattern.CASE_INSENSITIVE);
+            Pattern msPattern     = Pattern.compile("(\\d+|<1)\\s*ms");
+            Pattern ipPattern     = Pattern.compile("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Matcher lineMatcher = linePattern.matcher(line);
+                if (!lineMatcher.find()) continue;
+
+                int hopNum;
+                try {
+                    hopNum = Integer.parseInt(lineMatcher.group(1).trim());
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+
+                boolean isTimeout = timeoutPattern.matcher(line).find();
+                if (isTimeout) {
+                    hops.add(new TraceHopDto(hopNum, "*", "Tiempo de espera agotado", null, true));
+                    continue;
+                }
+
+                // Latencia: primer valor ms encontrado
+                Integer latency = null;
+                Matcher msMatcher = msPattern.matcher(line);
+                if (msMatcher.find()) {
+                    String val = msMatcher.group(1);
+                    latency = val.equals("<1") ? 0 : Integer.parseInt(val);
+                }
+
+                // IP: último valor IPv4 de la línea (los ms también son números, la IP va al final)
+                String ip = null;
+                Matcher ipMatcher = ipPattern.matcher(line);
+                while (ipMatcher.find()) {
+                    ip = ipMatcher.group(1);
+                }
+                if (ip == null) ip = "*";
+
+                hops.add(new TraceHopDto(hopNum, ip, ip, latency, false));
+
+                // Guardar en ambas tablas
+                PacketDto packet = new PacketDto();
+                packet.setTipoPaquete("ICMP");
+                packet.setFuente("Local");
+                packet.setDestino(ip);
+                packet.setContenidos("TRACE_HOP_" + hopNum);
+                packet.setRespuesta("TTL_EXCEEDED");
+                packet.setTiempoRespuesta(latency);
+                packetService.registerPacket(packet);
+
+                AnalisisRed analisis = sessionManagerService.getActiveAnalysis();
+                DiagnosticPacket dp = new DiagnosticPacket();
+                dp.setComponente("TRACEROUTE");
+                dp.setTipoPaquete("ICMP");
+                dp.setFuente("Local");
+                dp.setDestino(ip);
+                dp.setContenidos("TRACE_HOP_" + hopNum);
+                dp.setRespuesta("TTL_EXCEEDED");
+                dp.setTiempoRespuesta(latency);
+                dp.setTimestamp(LocalDateTime.now());
+                dp.setAnalisisRed(analisis);
+                diagnosticPacketRepository.save(dp);
+            }
+
+            process.waitFor();
+
+        } catch (Exception e) {
+            hops.add(new TraceHopDto(hops.size() + 1, "error", "Error: " + e.getMessage(), null, true));
+        }
+
+        return hops;
     }
 }

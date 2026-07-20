@@ -14,4 +14,8 @@ public interface SessionManagerService {
     void setActiveAnalysis(AnalisisRed analysis);
     AnalisisRed getActiveAnalysis();
     void clearActiveAnalysis();
+
+    // Interface Session
+    void setActiveInterface(ve.student.netAnalyzer.dto.InterfaceDto activeInterface);
+    ve.student.netAnalyzer.dto.InterfaceDto getActiveInterface();
 }

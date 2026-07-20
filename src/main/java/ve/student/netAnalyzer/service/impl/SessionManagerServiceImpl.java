@@ -10,6 +10,7 @@ public class SessionManagerServiceImpl implements SessionManagerService {
 
     private AppUser activeUser;
     private AnalisisRed activeAnalysis;
+    private ve.student.netAnalyzer.dto.InterfaceDto activeInterface;
 
     @Override
     public void setActiveUser(AppUser user) {
@@ -39,5 +40,15 @@ public class SessionManagerServiceImpl implements SessionManagerService {
     @Override
     public void clearActiveAnalysis() {
         this.activeAnalysis = null;
+    }
+
+    @Override
+    public void setActiveInterface(ve.student.netAnalyzer.dto.InterfaceDto activeInterface) {
+        this.activeInterface = activeInterface;
+    }
+
+    @Override
+    public ve.student.netAnalyzer.dto.InterfaceDto getActiveInterface() {
+        return this.activeInterface;
     }
 }
