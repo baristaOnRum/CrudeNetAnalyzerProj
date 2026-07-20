@@ -33,7 +33,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         
         if (response.ok) {
           const data = await response.json();
-          const role = sourceId === 'admin' ? 'ADMINISTRADOR (Nivel 4)' : 'ANALISTA (Nivel 3)';
+          const roleStr = data.role === 'ADMIN' ? 'Administrador' : (data.role === 'VIEWER' ? 'Observador' : 'Analista');
+          const role = sourceId === 'Invitado' ? 'Invitado' : roleStr;
           const token = data.token; // Guardar el token validado desde el backend
           setStatus('success');
           setTimeout(() => {
@@ -165,7 +166,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setTimeout(() => {
                       onLoginSuccess({
                         sourceId: 'Invitado',
-                        role: 'INVITADO (Acceso Limitado)',
+                        role: 'Invitado',
                         token: data.token || 'guest-token'
                       });
                     }, 500);
@@ -179,7 +180,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               className="w-full py-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px] text-amber-600">person_play</span>
-              Continuar como Invitado (Sesión Limitada)
+              Continuar como Invitado
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 package ve.student.netAnalyzer.service.capture;
 
 import jakarta.annotation.PreDestroy;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,14 +31,46 @@ public class PacketCaptureService {
 
     private final PacketRepository packetRepository;
     private final AnalisisRedRepository analisisRedRepository;
+    private final ve.student.netAnalyzer.service.SessionManagerService sessionManagerService;
 
     @Autowired
-    public PacketCaptureService(PacketRepository packetRepository, AnalisisRedRepository analisisRedRepository) {
+    public PacketCaptureService(PacketRepository packetRepository, AnalisisRedRepository analisisRedRepository, ve.student.netAnalyzer.service.SessionManagerService sessionManagerService) {
         this.packetRepository = packetRepository;
         this.analisisRedRepository = analisisRedRepository;
+        this.sessionManagerService = sessionManagerService;
+    }
+
+    @PostConstruct
+    public void init() {
+        setupUsbpcapIntegration();
+    }
+
+    private void setupUsbpcapIntegration() {
+        if (!System.getProperty("os.name").toLowerCase().contains("win")) return;
+        
+        java.io.File source = new java.io.File("C:\\Program Files\\USBPcap\\USBPcapCMD.exe");
+        java.io.File destDir = new java.io.File("tshark-portable\\App\\Wireshark\\extcap");
+        java.io.File dest = new java.io.File(destDir, "USBPcapCMD.exe");
+        
+        if (source.exists() && destDir.exists() && !dest.exists()) {
+            try {
+                java.nio.file.Files.copy(source.toPath(), dest.toPath());
+                logger.info("USBPcapCMD.exe copiado a extcap para habilitar captura USB en Wireshark Portable.");
+            } catch (Exception e) {
+                logger.error("No se pudo copiar USBPcapCMD.exe a extcap", e);
+            }
+        }
     }
 
     public void startCapture(String interfaceName, Long analysisId) throws IOException {
+        startCaptureWithFilter(interfaceName, analysisId, null);
+    }
+
+    /**
+     * Inicia la captura con un filtro BPF opcional (ej. "host 1.2.3.4").
+     * Úsese para análisis activo donde se desea aislar el tráfico por IP de destino.
+     */
+    public void startCaptureWithFilter(String interfaceName, Long analysisId, String bpfFilter) throws IOException {
         if (captureProcess != null && captureProcess.isAlive()) {
             logger.warn("A capture is already running. Stopping it before starting a new one.");
             stopCapture();
@@ -48,18 +81,27 @@ public class PacketCaptureService {
             executable += ".exe";
         }
 
-        ProcessBuilder pb = new ProcessBuilder(
+        java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(
                 executable,
                 "-i", interfaceName,
                 "-T", "fields",
-                "-e", "ip.src",
-                "-e", "ip.dst",
+                "-e", "_ws.col.Source",
+                "-e", "_ws.col.Destination",
                 "-e", "_ws.col.Protocol",
                 "-e", "frame.len",
                 "-e", "_ws.col.Info",
                 "-E", "separator=|",
-                "-l" // flush every line
-        );
+                "-l"
+        ));
+
+        // Filtro BPF opcional para aislar tráfico por host/IP (análisis activo)
+        if (bpfFilter != null && !bpfFilter.isBlank()) {
+            command.add("-f");
+            command.add(bpfFilter);
+            logger.info("BPF filter aplicado: {}", bpfFilter);
+        }
+
+        ProcessBuilder pb = new ProcessBuilder(command);
 
         pb.redirectErrorStream(true);
         
@@ -73,6 +115,10 @@ public class PacketCaptureService {
                 AnalisisRed activeAnalysis = null;
                 if (analysisId != null) {
                     activeAnalysis = analisisRedRepository.findById(analysisId.intValue()).orElse(null);
+                }
+                if (activeAnalysis == null && sessionManagerService.getActiveAnalysis() != null) {
+                    activeAnalysis = sessionManagerService.getActiveAnalysis();
+                    logger.info("Asignando análisis activo desde SessionManager: ID {}", activeAnalysis.getId());
                 }
 
                 String line;
@@ -197,31 +243,80 @@ public class PacketCaptureService {
         if (System.getProperty("os.name").toLowerCase().contains("win") && !executable.endsWith(".exe")) {
             executable += ".exe";
         }
+
+        java.util.Map<String, String> guidToMac = new java.util.HashMap<>();
+        java.util.Map<String, String> nameToMac = new java.util.HashMap<>();
+
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            try {
+                Process pMac = Runtime.getRuntime().exec("getmac /v /fo csv");
+                BufferedReader readerMac = new BufferedReader(new InputStreamReader(pMac.getInputStream()));
+                String lineMac;
+                java.util.regex.Pattern guidPattern = java.util.regex.Pattern.compile("(\\{[A-F0-9\\-]+\\})", java.util.regex.Pattern.CASE_INSENSITIVE);
+                while ((lineMac = readerMac.readLine()) != null) {
+                    if (lineMac.trim().isEmpty() || lineMac.startsWith("\"Connection Name\"")) continue;
+                    String[] parts = lineMac.split("\",\"");
+                    if (parts.length >= 4) {
+                        String connName = parts[0].replace("\"", "").trim();
+                        String macAddr = parts[2].replace("\"", "").trim().replace("-", ":");
+                        String transport = parts[3].replace("\"", "").trim();
+
+                        if (!macAddr.equals("N/A") && !macAddr.isEmpty()) {
+                            nameToMac.put(connName, macAddr);
+                            java.util.regex.Matcher m = guidPattern.matcher(transport);
+                            if (m.find()) {
+                                guidToMac.put(m.group(1).toUpperCase(), macAddr);
+                            }
+                        }
+                    }
+                }
+                pMac.waitFor();
+            } catch (Exception e) {
+                logger.error("Error reading getmac output", e);
+            }
+        }
+
         try {
             ProcessBuilder pb = new ProcessBuilder(executable, "-D");
             Process p = pb.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line;
+            java.util.regex.Pattern guidPattern = java.util.regex.Pattern.compile("(\\{[A-F0-9\\-]+\\})", java.util.regex.Pattern.CASE_INSENSITIVE);
             while ((line = reader.readLine()) != null) {
                 java.util.Map<String, String> ifaceMap = new java.util.HashMap<>();
                 ifaceMap.put("name", line);
                 
                 String mac = "00:00:00:00:00:00";
-                int start = line.indexOf('(');
-                int end = line.lastIndexOf(')');
-                if (start != -1 && end != -1 && end > start) {
-                    String desc = line.substring(start + 1, end);
-                    java.util.Enumeration<java.net.NetworkInterface> nets = java.net.NetworkInterface.getNetworkInterfaces();
-                    for (java.net.NetworkInterface netint : java.util.Collections.list(nets)) {
-                        if (netint.getDisplayName() != null && netint.getDisplayName().equals(desc)) {
-                            byte[] macBytes = netint.getHardwareAddress();
-                            if (macBytes != null) {
-                                StringBuilder sb = new StringBuilder();
-                                for (int i = 0; i < macBytes.length; i++) {
-                                    sb.append(String.format("%02X%s", macBytes[i], (i < macBytes.length - 1) ? ":" : ""));
+                
+                java.util.regex.Matcher gm = guidPattern.matcher(line);
+                if (gm.find()) {
+                    String guid = gm.group(1).toUpperCase();
+                    if (guidToMac.containsKey(guid)) {
+                        mac = guidToMac.get(guid);
+                    }
+                }
+                
+                if (mac.equals("00:00:00:00:00:00")) {
+                    int start = line.indexOf('(');
+                    int end = line.lastIndexOf(')');
+                    if (start != -1 && end > start) {
+                        String desc = line.substring(start + 1, end).trim();
+                        if (nameToMac.containsKey(desc)) {
+                            mac = nameToMac.get(desc);
+                        } else {
+                            java.util.Enumeration<java.net.NetworkInterface> nets = java.net.NetworkInterface.getNetworkInterfaces();
+                            for (java.net.NetworkInterface netint : java.util.Collections.list(nets)) {
+                                if (netint.getDisplayName() != null && netint.getDisplayName().equals(desc)) {
+                                    byte[] macBytes = netint.getHardwareAddress();
+                                    if (macBytes != null) {
+                                        StringBuilder sb = new StringBuilder();
+                                        for (int i = 0; i < macBytes.length; i++) {
+                                            sb.append(String.format("%02X%s", macBytes[i], (i < macBytes.length - 1) ? ":" : ""));
+                                        }
+                                        mac = sb.toString();
+                                        break;
+                                    }
                                 }
-                                mac = sb.toString();
-                                break;
                             }
                         }
                     }

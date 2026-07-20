@@ -12,6 +12,8 @@ interface SidebarProps {
   userName: string;
   userRole: string;
   onLogout: () => void;
+  activeAnalysisId: number | null;
+  isMonitoring: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -19,15 +21,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onViewChange,
   userName,
   userRole,
-  onLogout
+  onLogout,
+  activeAnalysisId,
+  isMonitoring
 }) => {
   return (
     <aside className="fixed left-0 top-0 h-full z-40 flex flex-col bg-white border-r border-[#E2E8F0] w-64 select-none font-sans">
       {/* Brand Header */}
       <div className="p-6">
-        <h1 className="text-xl font-bold text-primary font-sans flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-xl">router</span>
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-primary font-sans flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl">router</span>
+          </h1>
+          {activeAnalysisId && (
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-widest uppercase ${isMonitoring ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isMonitoring ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></span>
+              S-{activeAnalysisId} {isMonitoring && 'REC'}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Navigation items list */}

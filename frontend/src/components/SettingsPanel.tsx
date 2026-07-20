@@ -8,9 +8,11 @@ import Swal from 'sweetalert2';
 import { Modal } from './common/Modal';
 
 interface SettingsPanelProps {
+  currentUserRole?: string;
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ currentUserRole = '' }) => {
+  const isAdmin = currentUserRole.toUpperCase().includes('ADMINISTRADOR');
   const [dbType, setDbType] = useState<'postgresql' | 'sqlite' | 'h2'>('postgresql');
   const [dbHost, setDbHost] = useState('127.0.0.1');
   const [dbPort, setDbPort] = useState('5432');
@@ -140,7 +142,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
             <select
               value={dbType}
               onChange={(e) => handleEngineChange(e.target.value as any)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-sans cursor-pointer"
+              disabled={!isAdmin}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="postgresql">PostgreSQL (Hibernate PostgreSQLDialect)</option>
               <option value="sqlite">SQLite (Hibernate SQLiteDialect)</option>
@@ -156,8 +159,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
               type="text"
               value={dbHost}
               onChange={(e) => setDbHost(e.target.value)}
-              disabled={dbType === 'sqlite'}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50"
+              disabled={dbType === 'sqlite' || !isAdmin}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -169,8 +172,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
               type="text"
               value={dbPort}
               onChange={(e) => setDbPort(e.target.value)}
-              disabled={dbType === 'sqlite'}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50"
+              disabled={dbType === 'sqlite' || !isAdmin}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -182,7 +185,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
               type="text"
               value={dbName}
               onChange={(e) => setDbName(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans"
+              disabled={!isAdmin}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -194,7 +198,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
               type="text"
               value={dbUser}
               onChange={(e) => setDbUser(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans"
+              disabled={!isAdmin}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -206,20 +211,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
               type="password"
               value={dbPass}
               onChange={(e) => setDbPass(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans"
+              disabled={!isAdmin}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25 outline-none font-sans disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
 
         <div className="pt-8 border-t border-slate-100 flex justify-between items-center">
-          <button
-            type="button"
-            onClick={handleSaveConfig}
-            className="py-2.5 px-6 bg-primary hover:bg-opacity-90 text-white font-sans text-xs font-bold tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-primary/20"
-          >
-            <span className="material-symbols-outlined text-[17px]">save</span>
-            GUARDAR CONFIGURACIÓN
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={handleSaveConfig}
+              className="py-2.5 px-6 bg-primary hover:bg-opacity-90 text-white font-sans text-xs font-bold tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-primary/20"
+            >
+              <span className="material-symbols-outlined text-[17px]">save</span>
+              GUARDAR CONFIGURACIÓN
+            </button>
+          ) : (
+            <div className="text-xs text-slate-500 italic">Solo los administradores pueden modificar la configuración de red.</div>
+          )}
         </div>
       </div>
 
@@ -240,7 +250,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
           { label: 'Driver Class (JPA)', value: computeDriver(), fullWidth: true, isCode: true },
           { label: 'Dialecto Hibernate', value: computeDialect(), fullWidth: true, isCode: true }
         ]}
-        actions={[
+        actions={isAdmin ? [
           {
             label: 'Guardar esta Configuración',
             icon: 'save',
@@ -249,7 +259,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = () => {
               handleSaveConfig();
             }
           }
-        ]}
+        ] : undefined}
       />
     </div>
   );

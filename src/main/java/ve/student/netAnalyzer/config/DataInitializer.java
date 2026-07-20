@@ -16,18 +16,18 @@ public class DataInitializer {
     public CommandLineRunner initData(UserRepository userRepository) {
         return args -> {
             Optional<AppUser> adminOpt = userRepository.findAll().stream()
-                    .filter(u -> "admin".equals(u.getNombre()))
+                    .filter(u -> "adminprueba".equals(u.getNombre()))
                     .findFirst();
 
             if (adminOpt.isEmpty()) {
                 AppUser admin = new AppUser();
-                admin.setNombre("admin");
+                admin.setNombre("adminprueba");
                 admin.setPassHasheada("123456"); // En un caso real se usaría BCrypt
                 admin.setRol(AppRole.ADMIN);
                 userRepository.save(admin);
-                System.out.println("Usuario 'admin' creado exitosamente.");
+                System.out.println("Usuario 'adminprueba' creado exitosamente.");
             } else {
-                System.out.println("Usuario 'admin' ya existe en la base de datos.");
+                System.out.println("Usuario 'adminprueba' ya existe en la base de datos.");
             }
 
             Optional<AppUser> guestOpt = userRepository.findAll().stream()
