@@ -22,7 +22,24 @@ public class ReportController {
     }
 
     @PostMapping("/statistics")
-    public ResponseEntity<Statistics> generateStatistics(@RequestBody DateRange range) {
-        return ResponseEntity.ok(reportService.generateStatistics(range));
+    public ResponseEntity<Statistics> generateStatistics(@RequestBody ReportCriteria criteria) {
+        return ResponseEntity.ok(reportService.generateStatistics(criteria));
+    }
+
+    @GetMapping("/download/{filename}")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadReport(@PathVariable String filename) {
+        try {
+            java.nio.file.Path filePath = java.nio.file.Paths.get("reports").resolve(filename).normalize();
+            org.springframework.core.io.Resource resource = new org.springframework.core.io.UrlResource(filePath.toUri());
+            if (resource.exists()) {
+                return ResponseEntity.ok()
+                        .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

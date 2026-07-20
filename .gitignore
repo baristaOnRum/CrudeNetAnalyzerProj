@@ -41,3 +41,9 @@ out/
 node_modules/
 npm-debug.log*
 dist/
+
+# Generados
+frontend/backend.jar
+frontend/release/
+reports/
+*.db-journal

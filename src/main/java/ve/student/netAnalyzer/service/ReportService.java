@@ -7,5 +7,5 @@ import ve.student.netAnalyzer.dto.Statistics;
 
 public interface ReportService {
     Report generateReport(ReportCriteria criteria);
-    Statistics generateStatistics(DateRange range);
+    Statistics generateStatistics(ReportCriteria criteria);
 }

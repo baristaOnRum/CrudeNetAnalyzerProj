@@ -19,4 +19,10 @@ public interface PacketRepository extends JpaRepository<Packet, Long> {
 
     @org.springframework.data.jpa.repository.Query("SELECT p.tipoPaquete, COUNT(p) FROM Packet p WHERE p.analisisRed.id = :analysisId GROUP BY p.tipoPaquete")
     List<Object[]> getProtocolDistribution(@org.springframework.data.repository.query.Param("analysisId") Integer analysisId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p.fuente, COUNT(p) FROM Packet p WHERE p.analisisRed.id = :analysisId GROUP BY p.fuente ORDER BY COUNT(p) DESC")
+    List<Object[]> findTopSourceIps(@org.springframework.data.repository.query.Param("analysisId") Integer analysisId, org.springframework.data.domain.Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p.destino, COUNT(p) FROM Packet p WHERE p.analisisRed.id = :analysisId GROUP BY p.destino ORDER BY COUNT(p) DESC")
+    List<Object[]> findTopDestIps(@org.springframework.data.repository.query.Param("analysisId") Integer analysisId, org.springframework.data.domain.Pageable pageable);
 }

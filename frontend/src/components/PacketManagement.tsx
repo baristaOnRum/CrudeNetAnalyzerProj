@@ -107,13 +107,26 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
     return true;
   });
 
-  const handleExport = async (type: 'CSV' | 'JSON') => {
+  const handleExport = async (type: 'CSV' | 'JSON' | 'PDF') => {
     setExportingState('exporting');
     setExportMessage(`Preparando salida ${type}...`);
     
     if (activeAnalysisId) {
       try {
-        const response = await fetch(`/api/packets/export/${activeAnalysisId}?format=${type}`);
+        if (type === 'PDF') {
+          const res = await fetch('/api/reports/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: activeAnalysisId.toString(), reportType: "PDF_PACKETS" })
+          });
+          if (res.ok) {
+            const report = await res.json();
+            if (report.downloadUrl) {
+              window.open(report.downloadUrl, '_blank');
+            }
+          }
+        } else {
+          const response = await fetch(`/api/packets/export/${activeAnalysisId}?format=${type}`);
         if (response.ok) {
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
@@ -125,12 +138,24 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
           a.remove();
           window.URL.revokeObjectURL(url);
         }
+        }
       } catch (e) {
         console.error('Failed to export from backend', e);
       }
     } else {
-      let exportContent = '';
-      if (type === 'CSV') {
+      if (type === 'PDF') {
+        const res = await fetch('/api/reports/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reportType: "PDF_PACKETS" })
+        });
+        if (res.ok) {
+          const report = await res.json();
+          if (report.downloadUrl) window.open(report.downloadUrl, '_blank');
+        }
+      } else {
+        let exportContent = '';
+        if (type === 'CSV') {
         exportContent = 'id,timestamp,sourceIp,destIp,protocol,length,content\n';
         exportContent += packets.map(p => `${p.id},${p.timestamp},${p.sourceIp},${p.destIp},${p.protocol},${p.length},${p.content}`).join('\n');
       } else {
@@ -144,6 +169,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      }
     }
     
     setExportingState('idle');
@@ -222,6 +248,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
           </div>
           <div className="flex items-center gap-4 mt-3 md:mt-0">
             <div className="flex items-center gap-2">
+              <button onClick={() => handleExport('PDF')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">PDF</button>
               <button onClick={() => handleExport('CSV')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">CSV</button>
               <button onClick={() => handleExport('JSON')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">JSON</button>
             </div>

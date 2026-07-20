@@ -6,6 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { Modal } from './common/Modal';
+import { 
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+  PieChart, Pie, Cell, ResponsiveContainer 
+} from 'recharts';
 
 interface AnalisisRed {
   id: number;
@@ -16,7 +20,8 @@ interface AnalisisRed {
 export const ReportsConsole: React.FC = () => {
   const [sessions, setSessions] = useState<AnalisisRed[]>([]);
   const [selectedSession, setSelectedSession] = useState<AnalisisRed | null>(null);
-  const [sessionPackets, setSessionPackets] = useState<any[]>([]);
+  const [sessionStats, setSessionStats] = useState<any>(null);
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newDuration, setNewDuration] = useState('60');
 
@@ -50,15 +55,18 @@ export const ReportsConsole: React.FC = () => {
     fetchSessions(0);
   }, []);
 
-  const handleViewPackets = async (session: AnalisisRed) => {
+  const handleViewStats = async (session: AnalisisRed) => {
     setSelectedSession(session);
-    setSessionPackets([]);
+    setSessionStats(null);
     try {
-      const res = await fetch('/api/packets');
+      const res = await fetch('/api/reports/statistics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.id.toString() })
+      });
       if (res.ok) {
         const data = await res.json();
-        const packets = data.filter((p: any) => p.idAnalisis === session.id);
-        setSessionPackets(packets);
+        setSessionStats(data);
       }
     } catch (e) {
       console.error(e);
@@ -91,33 +99,37 @@ export const ReportsConsole: React.FC = () => {
     const session = sessions.find(s => s.id === id);
     if (!session) return;
     
+    let reqBody: any = { sessionId: id.toString(), reportType: "PDF_STATS" };
+
     try {
-      await fetch('/api/reports/generate', {
+      Swal.fire({
+        title: 'Generando Reporte...',
+        text: 'Compilando informe estadístico en PDF.',
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      const res = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysisId: id })
+        body: JSON.stringify(reqBody)
       });
-    } catch (e) {}
-
-    Swal.fire({
-      title: 'Generando Reporte...',
-      text: 'Compilando informe en PDF.',
-      timer: 1500,
-      showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading();
+      
+      if (res.ok) {
+          const report = await res.json();
+          if (report.downloadUrl) {
+              Swal.fire({ text: `¡Reporte generado con éxito!`, icon: 'success', confirmButtonColor: '#4F46E5' });
+              window.open(report.downloadUrl, '_blank');
+          } else {
+              Swal.fire({ text: `Se ha guardado el informe localmente.`, icon: 'success', confirmButtonColor: '#4F46E5' });
+          }
+      } else {
+          Swal.fire({ title: 'Error', text: 'No se pudo generar el reporte.', icon: 'error' });
       }
-    }).then(() => {
-      Swal.fire({ text: `Se ha compilado con éxito el informe para el rastreo de paquetes ${id}. ¡Reporte descargado!`, icon: 'success', confirmButtonColor: '#4F46E5' });
-      const mockBlobText = `Reporte de Análisis - Sistema de Asistencia al Monitoreo y Auditoria\nID de Sesión: ${id}\nFecha: ${session.fechaEjecucion}\nDuración: ${session.duracionAnalisis}s`;
-      const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(mockBlobText);
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', `SAMA_Reporte_${id}.txt`);
-      document.body.appendChild(linkElement);
-      linkElement.click();
-      document.body.removeChild(linkElement);
-    });
+    } catch (e) {
+        Swal.fire({ title: 'Error', text: 'Error de red.', icon: 'error' });
+    }
   };
 
   const filteredSessions = sessions.filter(s => {
@@ -131,6 +143,27 @@ export const ReportsConsole: React.FC = () => {
     }
     return true;
   });
+
+  // Prepare Pareto Data (Bar + Line for IPs)
+  const paretoData = [];
+  if (sessionStats?.topSourceIps) {
+      let cumulative = 0;
+      const total = Object.values(sessionStats.topSourceIps).reduce((a:any, b:any) => a + b, 0) as number;
+      for (const [ip, count] of Object.entries(sessionStats.topSourceIps)) {
+          cumulative += (count as number);
+          const cumPercentage = total > 0 ? (cumulative / total) * 100 : 0;
+          paretoData.push({ ip, count, acumulado: cumPercentage });
+      }
+  }
+
+  // Prepare Pie Data (Protocols)
+  const pieData = [];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  if (sessionStats?.protocolDistribution) {
+      for (const [proto, count] of Object.entries(sessionStats.protocolDistribution)) {
+          pieData.push({ name: proto, value: count });
+      }
+  }
 
   return (
     <div className="space-y-6 font-sans mt-4">
@@ -210,16 +243,16 @@ export const ReportsConsole: React.FC = () => {
                   </td>
                   <td className="p-4 pr-6 text-right space-x-2">
                     <button 
-                      onClick={() => handleViewPackets(session)}
+                      onClick={() => handleViewStats(session)}
                       className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-xs font-semibold transition-colors border border-blue-200 cursor-pointer"
                     >
-                      Ver
+                      Ver Estadísticas
                     </button>
                     <button 
                       onClick={() => handleGenerateReport(session.id)}
                       className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md text-xs font-semibold transition-colors border border-primary/20 cursor-pointer"
                     >
-                      Descargar Reporte
+                      Descargar Reporte PDF
                     </button>
                   </td>
                 </tr>
@@ -261,43 +294,95 @@ export const ReportsConsole: React.FC = () => {
         )}
       </div>
 
-      {/* Detail Session Modal */}
+      {/* Detail Session Modal (Dashboard) */}
       {selectedSession && (
         <Modal
           isOpen={!!selectedSession}
           onClose={() => setSelectedSession(null)}
-          title={`Paquetes de la Sesión #${selectedSession.id}`}
-          subtitle="Listado de paquetes interceptados durante el análisis"
-          icon="list_alt"
-          size="lg"
+          title={`Estadísticas de la Sesión #${selectedSession.id}`}
+          subtitle="Métricas de rendimiento e indicadores de red"
+          icon="query_stats"
+          size="2xl"
         >
-          <div className="overflow-y-auto max-h-[400px]">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0] font-bold text-[#64748B] uppercase">
-                <tr>
-                  <th className="p-3">Protocolo</th>
-                  <th className="p-3">Origen</th>
-                  <th className="p-3">Destino</th>
-                  <th className="p-3">Contenido (bytes)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E2E8F0]">
-                {sessionPackets.map((pkt: any, i: number) => (
-                  <tr key={i} className="hover:bg-slate-50">
-                    <td className="p-3 font-semibold text-slate-800">{pkt.tipoPaquete}</td>
-                    <td className="p-3 font-mono">{pkt.fuente}</td>
-                    <td className="p-3 font-mono">{pkt.destino}</td>
-                    <td className="p-3 font-mono text-slate-500 truncate max-w-[200px]">{pkt.contenidos}</td>
-                  </tr>
-                ))}
-                {sessionPackets.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="p-6 text-center text-slate-400">No hay paquetes guardados para esta sesión.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {sessionStats ? (
+            <div className="space-y-6">
+                
+                {/* Metric Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Jitter Promedio</span>
+                        <span className="text-2xl font-black text-indigo-600">{sessionStats.averageJitter?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
+                        <span className="text-[10px] text-slate-400 mt-1">P90: {sessionStats.jitter90thPercentile?.toFixed(2)} ms</span>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Descarga</span>
+                        <span className="text-2xl font-black text-emerald-600">{sessionStats.downloadRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">B/s</span></span>
+                        <span className="text-[10px] text-slate-400 mt-1">P90 Tamaño: {sessionStats.size90thPercentile?.toFixed(2)} B</span>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Paquetes</span>
+                        <span className="text-2xl font-black text-amber-600">{sessionStats.packetRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">pkt/s</span></span>
+                        <span className="text-[10px] text-slate-400 mt-1">Total: {sessionStats.totalPackets}</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Pareto Chart */}
+                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Pareto: Tráfico por IPs Origen</h4>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={paretoData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="ip" tick={{fontSize: 10}} interval={0} angle={-15} textAnchor="end" />
+                                    <YAxis yAxisId="left" tick={{fontSize: 10}} />
+                                    <YAxis yAxisId="right" orientation="right" tick={{fontSize: 10}} domain={[0, 100]} />
+                                    <Tooltip />
+                                    <Legend wrapperStyle={{fontSize: '10px'}} />
+                                    <Bar yAxisId="left" dataKey="count" name="Frecuencia" barSize={20} fill="#4F46E5" />
+                                    <Line yAxisId="right" type="monotone" dataKey="acumulado" name="% Acumulado" stroke="#ff7300" strokeWidth={2} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Pie Chart */}
+                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Proporción de Protocolos (Torta)</h4>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={40}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                        labelLine={false}
+                                        style={{fontSize: '10px'}}
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+          ) : (
+            <div className="p-12 text-center text-slate-400">
+                <span className="material-symbols-outlined animate-spin text-4xl mb-2">progress_activity</span>
+                <p>Cargando estadísticas...</p>
+            </div>
+          )}
+          
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-4">
              <button
                 onClick={() => {
@@ -305,9 +390,9 @@ export const ReportsConsole: React.FC = () => {
                   setSelectedSession(null);
                   handleGenerateReport(id);
                 }}
-                className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-md shadow-primary/20 cursor-pointer flex items-center gap-1"
+                className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-md shadow-primary/20 cursor-pointer flex items-center gap-1 hover:bg-primary/90"
              >
-               <span className="material-symbols-outlined text-sm">download</span> Generar Informe
+               <span className="material-symbols-outlined text-sm">download</span> Descargar Informe PDF
              </button>
           </div>
         </Modal>
@@ -358,4 +443,3 @@ export const ReportsConsole: React.FC = () => {
     </div>
   );
 };
-
