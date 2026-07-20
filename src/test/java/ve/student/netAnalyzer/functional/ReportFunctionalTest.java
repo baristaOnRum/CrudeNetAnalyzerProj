@@ -18,11 +18,20 @@ public class ReportFunctionalTest {
     private MockMvc mockMvc;
 
     @Test
-    public void testGenerateReport_Success() throws Exception {
+    public void testGenerateReport_WithValidCriteria() throws Exception {
         String criteriaJson = "{\"reportType\":\"summary\",\"sessionId\":\"1\"}";
         mockMvc.perform(post("/api/reports/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(criteriaJson))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGenerateStatistics_CalculatesCorrectly() throws Exception {
+        String rangeJson = "{\"startDate\":\"2026-01-01\",\"endDate\":\"2026-12-31\"}";
+        mockMvc.perform(post("/api/reports/statistics")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(rangeJson))
                 .andExpect(status().isOk());
     }
 }

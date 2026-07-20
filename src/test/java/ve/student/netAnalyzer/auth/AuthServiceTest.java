@@ -3,6 +3,7 @@ package ve.student.netAnalyzer.auth;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import ve.student.netAnalyzer.model.AppRole;
 import ve.student.netAnalyzer.model.AppUser;
 import ve.student.netAnalyzer.repository.UserRepository;
 
@@ -30,7 +31,7 @@ class AuthServiceTest {
     @Test
     void testLogin_Success() {
         Credentials creds = new Credentials("admin", "admin123");
-        AppUser mockUser = new AppUser("admin", "admin123", "ADMIN");
+        AppUser mockUser = new AppUser("admin", "admin123", AppRole.ADMIN);
         when(userRepository.findByNombre("admin")).thenReturn(Optional.of(mockUser));
 
         AuthToken token = authService.login(creds);
@@ -44,7 +45,7 @@ class AuthServiceTest {
     @Test
     void testLogin_InvalidCredentials() {
         Credentials creds = new Credentials("admin", "wrongpassword");
-        AppUser mockUser = new AppUser("admin", "admin123", "ADMIN");
+        AppUser mockUser = new AppUser("admin", "admin123", AppRole.ADMIN);
         when(userRepository.findByNombre("admin")).thenReturn(Optional.of(mockUser));
         
         Exception exception = assertThrows(RuntimeException.class, () -> {
@@ -58,7 +59,7 @@ class AuthServiceTest {
     void testLogout_Success() {
         // First login to get a valid token
         Credentials creds = new Credentials("user", "user123");
-        AppUser mockUser = new AppUser("user", "user123", "USER");
+        AppUser mockUser = new AppUser("user", "user123", AppRole.USER);
         when(userRepository.findByNombre("user")).thenReturn(Optional.of(mockUser));
 
         AuthToken token = authService.login(creds);
@@ -73,6 +74,9 @@ class AuthServiceTest {
 
     @Test
     void testLoginAsGuest_Success() {
+        AppUser mockGuest = new AppUser("guest", "guest", AppRole.GUEST);
+        when(userRepository.findByNombre("guest")).thenReturn(Optional.of(mockGuest));
+
         AuthToken token = authService.loginAsGuest();
         
         assertNotNull(token);

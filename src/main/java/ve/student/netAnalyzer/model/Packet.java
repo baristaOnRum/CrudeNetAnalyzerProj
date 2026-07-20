@@ -33,6 +33,12 @@ public class Packet {
     @Column(name = "tiempo_respuesta")
     private Integer tiempoRespuesta;
 
+    @Column(name = "longitud")
+    private Integer longitud;
+
+    @Column(name = "timestamp")
+    private java.time.LocalDateTime timestamp;
+
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_analisis", referencedColumnName = "id")
@@ -54,6 +60,10 @@ public class Packet {
     public void setRespuesta(String respuesta) { this.respuesta = respuesta; }
     public Integer getTiempoRespuesta() { return tiempoRespuesta; }
     public void setTiempoRespuesta(Integer tiempoRespuesta) { this.tiempoRespuesta = tiempoRespuesta; }
+    public Integer getLongitud() { return longitud; }
+    public void setLongitud(Integer longitud) { this.longitud = longitud; }
+    public java.time.LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(java.time.LocalDateTime timestamp) { this.timestamp = timestamp; }
     public AnalisisRed getAnalisisRed() { return analisisRed; }
     public void setAnalisisRed(AnalisisRed analisisRed) { this.analisisRed = analisisRed; }
 

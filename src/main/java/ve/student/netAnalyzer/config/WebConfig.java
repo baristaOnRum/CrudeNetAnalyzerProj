@@ -13,7 +13,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/**") // Apply to all API endpoints
                 // Add the ports your frontend might run on during development
                 // 5173 is Vite (Vue/React/Svelte) default, 3000 is React default, 4200 is Angular default
-                .allowedOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:4200") 
+                .allowedOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:4200", "http://127.0.0.1:5173", "http://127.0.0.1:3000")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Allowed HTTP methods
                 .allowedHeaders("*") // Allow all headers
                 .allowCredentials(true); // Essential if you are using cookies or session-based auth

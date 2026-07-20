@@ -25,4 +25,28 @@ public class AuthFunctionalTest {
                 .content(loginJson))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    public void testLogin_InvalidCredentials() throws Exception {
+        String loginJson = "{\"username\":\"admin\",\"password\":\"wrongpass\"}";
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginJson))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void testLogout_Success() throws Exception {
+        String token = "dummy-token";
+        mockMvc.perform(post("/api/auth/logout")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content(token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testLoginAsGuest_Success() throws Exception {
+        mockMvc.perform(post("/api/auth/guest"))
+                .andExpect(status().isOk());
+    }
 }

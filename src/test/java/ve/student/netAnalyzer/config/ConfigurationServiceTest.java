@@ -56,4 +56,19 @@ public class ConfigurationServiceTest {
         
         assertEquals(dto, service.getPersistentDbConfig());
     }
+
+    @Test
+    void testModifyParameter_KeyNotFound() {
+        String key = "nonExistentKey";
+        String value = "someValue";
+
+        when(repository.findByNombreConfiguracion(key)).thenReturn(Optional.empty());
+
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            service.modifyParameter(key, value);
+        });
+
+        assertEquals("Parámetro no encontrado", exception.getMessage());
+        verify(repository, never()).save(any(ConfigParameter.class));
+    }
 }

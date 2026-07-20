@@ -32,7 +32,6 @@ export interface NetworkSession {
 export interface Operator {
   avatarInitials: string;
   name: string;
-  email: string;
   role: 'ADMIN' | 'ANALYST' | 'VIEWER';
   status: 'Active' | 'Suspended';
   lastLogin: string;

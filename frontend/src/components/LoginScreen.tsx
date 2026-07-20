@@ -149,6 +149,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               )}
             </button>
           </form>
+
+          {/* Guest Session Divider and Button */}
+          <div className="mt-5 pt-4 border-t border-[#F1F5F9] flex flex-col gap-2">
+            <button
+              type="button"
+              disabled={status === 'connecting' || status === 'success'}
+              onClick={async () => {
+                setStatus('connecting');
+                try {
+                  const response = await fetch('/api/auth/guest', { method: 'POST' });
+                  if (response.ok) {
+                    const data = await response.json();
+                    setStatus('success');
+                    setTimeout(() => {
+                      onLoginSuccess({
+                        sourceId: 'Invitado',
+                        role: 'INVITADO (Acceso Limitado)',
+                        token: data.token || 'guest-token'
+                      });
+                    }, 500);
+                  } else {
+                    setStatus('error');
+                  }
+                } catch (e) {
+                  setStatus('error');
+                }
+              }}
+              className="w-full py-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] text-amber-600">person_play</span>
+              Continuar como Invitado (Sesión Limitada)
+            </button>
+          </div>
         </div>
 
         {/* Bottom Footer Links */}

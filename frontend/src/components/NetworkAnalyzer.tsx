@@ -5,20 +5,52 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
+import { Modal } from './common/Modal';
 
 interface NetworkAnalyzerProps {
   activeAnalysisId: number | null;
   setActiveAnalysisId: (id: number) => void;
 }
 
-export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysisId, setActiveAnalysisId }) => {
+export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysisId: propAnalysisId, setActiveAnalysisId: setPropAnalysisId }) => {
+  // Device management modal state
+  const [isDevicesModalOpen, setIsDevicesModalOpen] = useState(false);
+  const [devicesList, setDevicesList] = useState<any[]>([]);
+  const [selectedDevice, setSelectedDevice] = useState<any | null>(null);
+  const [isAddDeviceModalOpen, setIsAddDeviceModalOpen] = useState(false);
+  const [newDeviceData, setNewDeviceData] = useState({ nombre: '', tipo: 'Router', direccionIP: '', direccionMAC: '', estado: 'Activo' });
+
+  // Load Analysis modal state
+  const [isLoadAnalysisModalOpen, setIsLoadAnalysisModalOpen] = useState(false);
+  const [availableAnalyses, setAvailableAnalyses] = useState<any[]>([]);
+
+  const [activeAnalysisId, setActiveAnalysisId] = useState<number | null>(propAnalysisId);
+  const activeAnalysisIdRef = useRef<number | null>(propAnalysisId);
+  
+  const handleSetActiveAnalysisId = (id: number | null) => {
+    setActiveAnalysisId(id);
+    activeAnalysisIdRef.current = id;
+    setPropAnalysisId(id as number);
+  };
+
+  // Interface registration modal state
+  const [isInterfaceModalOpen, setIsInterfaceModalOpen] = useState(false);
+  const [interfaceData, setInterfaceData] = useState({ idAnalisis: activeAnalysisId || 1, nombreInterfaz: '1', macAddress: '00:00:00:00:00:00', ipAddress: '0.0.0.0' });
+  const [availableInterfaces, setAvailableInterfaces] = useState<{name: string, mac: string}[]>([]);
+  const [packetStream, setPacketStream] = useState<any[]>([]);
+
   // Monitoring states
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [packetStats, setPacketStats] = useState({ tcp: 0, udp: 0, icmp: 0, total: 0 });
+  const [packetStats, setPacketStats] = useState<any>({ total: 0, protocols: {} });
   const [trafficMetrics, setTrafficMetrics] = useState({ pps: 0, mbps: 0, loss: 0 });
   const monitoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef({ totalPkts: 0, totalBytes: 0, timestamp: Date.now() });
+  
+  // Incremental fetching refs
+  const lastFetchTimestampRef = useRef<number>(Date.now());
   const monitoringStartRef = useRef<number>(Date.now());
+  const lastPacketIdRef = useRef<number>(0);
+  const sessionProtocolsRef = useRef<Record<string, number>>({});
+  const totalSessionPktsRef = useRef<number>(0);
 
   // Ping states
   const [pingTarget, setPingTarget] = useState('8.8.8.8');
@@ -34,46 +66,158 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
   const [traceStatus, setTraceStatus] = useState<'Ready' | 'tracing' | 'complete'>('Ready');
   const [traceHops, setTraceHops] = useState<{ hop: number; ip: string; location: string; latency: number }[]>([]);
 
+  const fetchDevices = async () => {
+    try {
+      const response = await fetch('/api/devices');
+      if (response.ok) {
+        const data = await response.json();
+        setDevicesList(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch devices', e);
+    }
+  };
+
+  const fetchInterfaces = async () => {
+    try {
+      const response = await fetch('/api/analysis/interfaces');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableInterfaces(data);
+        if (data.length > 0) {
+          let selectedId = data[0].name.split('.')[0];
+          let mac = data[0].mac;
+          const wifiIface = data.find((i: any) => i.name.toLowerCase().includes('wi-fi') || i.name.toLowerCase().includes('wifi'));
+          if (wifiIface) {
+            selectedId = wifiIface.name.split('.')[0];
+            mac = wifiIface.mac;
+          }
+          setInterfaceData(prev => ({ ...prev, nombreInterfaz: selectedId, macAddress: mac, ipAddress: '0.0.0.0' }));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch interfaces', e);
+    }
+  };
+
+  const handleCreateDevice = async () => {
+    try {
+      const response = await fetch('/api/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDeviceData)
+      });
+      if (response.ok) {
+        Swal.fire('Éxito', 'Dispositivo de red creado correctamente', 'success');
+        setIsAddDeviceModalOpen(false);
+        fetchDevices();
+      } else {
+        Swal.fire('Error', 'No se pudo crear el dispositivo', 'error');
+      }
+    } catch (e) {
+      Swal.fire('Error', 'Fallo de conexión al servidor', 'error');
+    }
+  };
+
+  const handleDeleteDevice = async (id: number) => {
+    try {
+      const response = await fetch(`/api/devices/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        Swal.fire('Eliminado', 'Dispositivo eliminado', 'success');
+        fetchDevices();
+      }
+    } catch (e) {
+      Swal.fire('Error', 'Fallo al eliminar dispositivo', 'error');
+    }
+  };
+
+  const handleRegisterInterface = async () => {
+    try {
+      const response = await fetch('/api/analysis/interface', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...interfaceData,
+          idAnalisis: activeAnalysisId || interfaceData.idAnalisis
+        })
+      });
+      if (response.ok) {
+        Swal.fire('Éxito', 'Interfaz de red vinculada al análisis', 'success');
+        setIsInterfaceModalOpen(false);
+      } else {
+        Swal.fire('Error', 'Fallo al vincular la interfaz', 'error');
+      }
+    } catch (e) {
+      Swal.fire('Error', 'Fallo de red al registrar interfaz', 'error');
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
+    fetchInterfaces();
     return () => {
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
     };
   }, []);
 
+  useEffect(() => {
+    if (activeAnalysisId) {
+      setInterfaceData(prev => ({ ...prev, idAnalisis: activeAnalysisId }));
+    }
+  }, [activeAnalysisId]);
+
   const fetchPackets = async () => {
+    const fetchStartTime = Date.now();
     try {
-      const response = await fetch('/api/packets');
+      const sinceId = lastPacketIdRef.current;
+      const response = await fetch(`/api/packets?sinceId=${sinceId}`);
       if (response.ok) {
         let data: any[] = await response.json();
-        // Filtrar por ID de análisis activo si existe
-        if (activeAnalysisId) {
-          data = data.filter(p => p.idAnalisis === activeAnalysisId);
+        const currentAnalysisId = activeAnalysisIdRef.current;
+        if (currentAnalysisId) {
+          data = data.filter(p => p.idAnalisis === currentAnalysisId);
         }
 
-        const tcp = data.filter(p => p.tipoPaquete === 'TCP').length;
-        const udp = data.filter(p => p.tipoPaquete === 'UDP').length;
-        const icmp = data.filter(p => p.tipoPaquete === 'ICMP').length;
-        setPacketStats({ tcp, udp, icmp, total: data.length });
+        if (data.length > 0) {
+          // Update last ID seen
+          lastPacketIdRef.current = Math.max(...data.map(p => p.id));
+          
+          // Prepend to stream, keep last 50
+          setPacketStream(prev => {
+            const combined = [...data.reverse(), ...prev];
+            return combined.slice(0, 50);
+          });
+          
+          // Accumulate stats
+          data.forEach(p => {
+            const proto = p.tipoPaquete || 'Desconocido';
+            sessionProtocolsRef.current[proto] = (sessionProtocolsRef.current[proto] || 0) + 1;
+          });
+          totalSessionPktsRef.current += data.length;
+          
+          setPacketStats({
+            total: totalSessionPktsRef.current,
+            protocols: { ...sessionProtocolsRef.current }
+          });
+        }
 
-        // --- Metric 1: Packets per second (pps) ---
-        // Based on total packets vs elapsed monitoring time
-        const elapsedSec = Math.max(1, (Date.now() - monitoringStartRef.current) / 1000);
-        const pps = +(data.length / elapsedSec).toFixed(2);
-
-        // --- Metric 2: Data rate (Mbps) ---
-        // Based on actual byte size of 'contenidos' field in each packet
-        const totalBytes = data.reduce((acc, p) => {
+        // Instantaneous metrics
+        const intervalSec = Math.max(0.1, (fetchStartTime - lastFetchTimestampRef.current) / 1000);
+        
+        const deltaPkts = data.length;
+        const deltaBytes = data.reduce((acc, p) => {
+          if (p.longitud && p.longitud > 0) return acc + p.longitud;
           if (p.contenidos) return acc + new Blob([p.contenidos]).size;
-          return acc + 64; // assume minimum 64 bytes if no payload
+          return acc + 64; 
         }, 0);
-        const bitsTransferred = totalBytes * 8;
-        const mbps = +(bitsTransferred / elapsedSec / 1_000_000).toFixed(4);
 
-        // --- Metric 3: Packet Loss (%) ---
-        // Non-speculative: a packet is "lost" if its 'respuesta' field is null or empty,
-        // meaning it was captured/sent but received no response from the destination.
+        const pps = +(deltaPkts / intervalSec).toFixed(2);
+        const mbps = +((deltaBytes * 8) / intervalSec / 1_000_000).toFixed(4);
+
+        lastFetchTimestampRef.current = fetchStartTime;
+
+        // Packet loss
         const noResponse = data.filter(p => !p.respuesta || p.respuesta.trim() === '').length;
         const loss = data.length > 0
           ? +((noResponse / data.length) * 100).toFixed(2)
@@ -86,63 +230,205 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     }
   };
 
-  const toggleMonitoring = () => {
+  const toggleMonitoring = async () => {
     if (isMonitoring) {
       setIsMonitoring(false);
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+      try {
+        await fetch('/api/analysis/stop', { method: 'POST' });
+      } catch (e) {
+        console.error('Failed to stop backend capture', e);
+      }
     } else {
+      try {
+        const response = await fetch('/api/analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre: 'Monitoreo Pasivo' })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          handleSetActiveAnalysisId(data.id);
+          await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
+        }
+      } catch (e) {
+        console.error('Failed to create analysis session', e);
+      }
       setIsMonitoring(true);
-      monitoringStartRef.current = Date.now(); // reset elapsed time baseline
-      lastFetchRef.current = { totalPkts: 0, totalBytes: 0, timestamp: Date.now() };
-      fetchPackets(); // fetch immediately
-      monitoringIntervalRef.current = setInterval(fetchPackets, 2000);
+      monitoringStartRef.current = Date.now();
+      lastFetchTimestampRef.current = Date.now();
+      lastPacketIdRef.current = 0;
+      sessionProtocolsRef.current = {};
+      totalSessionPktsRef.current = 0;
+      
+      setPacketStream([]);
+      setPacketStats({ total: 0, protocols: {} });
+      setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
+      fetchPackets();
+      monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
     }
   };
 
-  const getProtocolPercentages = () => {
-    if (packetStats.total === 0) return { tcp: 0, udp: 0, icmp: 0, other: 0, original: {tcp:0, udp:0, icmp:0} };
-    let tcp = Math.round((packetStats.tcp / packetStats.total) * 100);
-    let udp = Math.round((packetStats.udp / packetStats.total) * 100);
-    let icmp = Math.round((packetStats.icmp / packetStats.total) * 100);
-    let other = 100 - tcp - udp - icmp;
-    
-    const original = { tcp, udp, icmp };
-
-    // Apply 15% threshold to group into Otros
-    if (tcp > 0 && tcp < 15) { other += tcp; tcp = 0; }
-    if (udp > 0 && udp < 15) { other += udp; udp = 0; }
-    if (icmp > 0 && icmp < 15) { other += icmp; icmp = 0; }
-
-    return { tcp, udp, icmp, other, original };
+  const handleStartActiveAnalysis = async () => {
+    try {
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: 'Análisis Activo' })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        handleSetActiveAnalysisId(data.id);
+        Swal.fire('Éxito', `Sesión de análisis activo ${data.id} iniciada`, 'success');
+        await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
+        
+        // Ensure frontend stream resets and listens to this new session
+        if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+        setIsMonitoring(true);
+        monitoringStartRef.current = Date.now();
+        lastFetchTimestampRef.current = Date.now();
+        lastPacketIdRef.current = 0;
+        sessionProtocolsRef.current = {};
+        totalSessionPktsRef.current = 0;
+        
+        setPacketStream([]);
+        setPacketStats({ total: 0, protocols: {} });
+        setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
+        
+        fetchPackets();
+        monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
+      }
+    } catch (e) {
+      console.error('Failed to start active analysis', e);
+        Swal.fire('Error', 'Fallo al iniciar análisis activo', 'error');
+    }
   };
 
-  const { tcp: tcpPct, udp: udpPct, icmp: icmpPct, other: otherPct, original } = getProtocolPercentages();
+  const handleOpenLoadAnalysis = async () => {
+    try {
+      const response = await fetch('/api/analysis?page=0&size=50');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableAnalyses(data.content || data);
+        setIsLoadAnalysisModalOpen(true);
+      }
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', 'No se pudieron cargar las sesiones de análisis', 'error');
+    }
+  };
 
-  // SVG parameters for donut
-  const circumference = 100;
-  let currentOffset = 0;
-  
-  const tcpStroke = (tcpPct / 100) * circumference;
-  const udpStroke = (udpPct / 100) * circumference;
-  const icmpStroke = (icmpPct / 100) * circumference;
-  const otherStroke = (otherPct / 100) * circumference;
+  const handleLoadAnalysis = async (session: any) => {
+    setIsLoadAnalysisModalOpen(false);
+    Swal.fire({
+      title: 'Cargando sesión...',
+      text: 'Calculando tráfico promedio y obteniendo paquetes',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
 
-  const tcpDasharray = `${tcpStroke} ${circumference - tcpStroke}`;
-  const tcpOffset = circumference - currentOffset;
-  currentOffset += tcpStroke;
+    try {
+      // 1. Fetch Summary
+      const summaryRes = await fetch(`/api/analysis/${session.id}/summary`);
+      let summary = null;
+      if (summaryRes.ok) summary = await summaryRes.json();
 
-  const udpDasharray = `${udpStroke} ${circumference - udpStroke}`;
-  const udpOffset = circumference - currentOffset;
-  currentOffset += udpStroke;
+      // 2. Fetch last packets (page 0, size 50)
+      const packetsRes = await fetch(`/api/packets?idAnalisis=${session.id}&page=0&size=50`);
+      let packets: any[] = [];
+      if (packetsRes.ok) {
+        const pData = await packetsRes.json();
+        packets = pData.content || pData;
+      }
 
-  const icmpDasharray = `${icmpStroke} ${circumference - icmpStroke}`;
-  const icmpOffset = circumference - currentOffset;
-  currentOffset += icmpStroke;
+      if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+      setIsMonitoring(false);
+      handleSetActiveAnalysisId(session.id);
 
-  const otherDasharray = `${otherStroke} ${circumference - otherStroke}`;
-  const otherOffset = circumference - currentOffset;
+      // Populate cards
+      if (summary) {
+        const pps = summary.durationSeconds > 0 ? +(summary.totalPackets / summary.durationSeconds).toFixed(2) : 0;
+        const mbps = summary.durationSeconds > 0 ? +((summary.totalBytes * 8 / 1_000_000) / summary.durationSeconds).toFixed(4) : 0;
+        
+        setPacketStats({
+          total: summary.totalPackets,
+          protocols: summary.protocolDistribution || {}
+        });
+        setTrafficMetrics({ pps, mbps, loss: 0 }); // Note: loss calculation for historical can be complex, defaulting to 0 or we could iterate packets if needed
+      }
 
-  // Infinite Ping Execution simulator
+      setPacketStream(packets.map((p: any) => ({
+        ...p,
+        id: p.id || Math.floor(Math.random() * 90000)
+      })));
+
+      Swal.close();
+      Swal.fire('Cargado', `Sesión #${session.id} cargada exitosamente.`, 'success');
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', 'Fallo al cargar la sesión', 'error');
+    }
+  };
+
+  const getProtocolSlices = () => {
+    if (!packetStats.protocols || packetStats.total === 0) return [];
+    
+    let otherCount = 0;
+    const slices: any[] = [];
+    const threshold = 0.16 * packetStats.total; // 16%
+
+    const sortedProtos = Object.entries(packetStats.protocols).sort((a: any, b: any) => b[1] - a[1]);
+    
+    for (const [proto, count] of sortedProtos) {
+      if ((count as number) >= threshold) {
+        slices.push({ name: proto, count: count as number });
+      } else {
+        otherCount += (count as number);
+      }
+    }
+    
+    if (otherCount > 0) {
+      slices.push({ name: 'Otros', count: otherCount });
+    }
+
+    const colorMap: any = {
+      'TCP': '#3B82F6',
+      'UDP': '#F97316',
+      'ICMP': '#22C55E',
+      'TLSv1.2': '#A855F7',
+      'TLSv1.3': '#EC4899',
+      'DNS': '#EAB308',
+      'MDNS': '#06B6D4',
+      'Otros': '#94A3B8'
+    };
+    const defaultColors = ['#F43F5E', '#8B5CF6', '#14B8A6', '#F59E0B', '#3B82F6'];
+    let colorIdx = 0;
+
+    const circumference = 100;
+    let currentOffset = 0;
+
+    return slices.map(s => {
+      const pct = Math.round((s.count / packetStats.total) * 100);
+      const stroke = (pct / 100) * circumference;
+      const offset = circumference - currentOffset;
+      const color = colorMap[s.name] || defaultColors[colorIdx++ % defaultColors.length];
+      
+      currentOffset += stroke;
+
+      return {
+        ...s,
+        pct,
+        color,
+        dasharray: `${stroke} ${circumference - stroke}`,
+        offset
+      };
+    });
+  };
+
+  const protocolSlices = getProtocolSlices();
+
   const handleStartPing = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!pingTarget) return;
@@ -216,7 +502,6 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     }, 1500);
   };
 
-  // Route trace execution simulator
   const handleStartTrace = (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!traceTarget) return;
@@ -236,12 +521,11 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       if (currentHopIndex < hopsData.length) {
         setTraceHops((prev) => [...prev, hopsData[currentHopIndex]]);
         
-        // Save hop as a packet in the DB
         const hop = hopsData[currentHopIndex];
         const payload = {
           tipoPaquete: 'ICMP',
           contenidos: `TRACE_HOP_${hop.hop}`,
-          fuente: '10.0.0.1', // Local IP source
+          fuente: '10.0.0.1', 
           destino: hop.ip,
           respuesta: 'TTL_EXCEEDED',
           tiempoRespuesta: hop.latency,
@@ -263,20 +547,45 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     setTimeout(stepTrace, 200);
   };
 
-  const handleLoadAnalysis = async () => {
-    const { value: idAnalisis } = await Swal.fire({
-      title: 'Cargar Análisis',
-      input: 'number',
-      inputLabel: 'ID del Análisis de Red',
-      inputPlaceholder: 'Ingrese el ID',
-      showCancelButton: true,
-      confirmButtonColor: '#4F46E5'
-    });
-
-    if (idAnalisis) {
-      setActiveAnalysisId(parseInt(idAnalisis));
-      Swal.fire({ text: `Análisis ${idAnalisis} cargado.`, icon: 'success', confirmButtonColor: '#4F46E5' });
+  const handleOpenInterfaceModal = async () => {
+    try {
+      const statusRes = await fetch('/api/analysis/npcap-status');
+      if (statusRes.ok) {
+        const isInstalled = await statusRes.json();
+        if (!isInstalled) {
+          const result = await Swal.fire({
+            title: 'Dependencia Faltante',
+            text: 'Npcap no está instalado. Es un controlador necesario para capturar paquetes de red nativos. ¿Desea instalarlo ahora?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, instalar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#4F46E5'
+          });
+          if (result.isConfirmed) {
+            Swal.fire({
+              title: 'Instalando Npcap...',
+              text: 'Sigue las instrucciones en la ventana del instalador. Esta alerta se cerrará al terminar.',
+              allowOutsideClick: false,
+              didOpen: () => { Swal.showLoading(); }
+            });
+            const installRes = await fetch('/api/analysis/install-npcap', { method: 'POST' });
+            if (installRes.ok) {
+              Swal.fire({ title: 'Completado', text: 'Npcap se ha instalado correctamente.', icon: 'success', timer: 2000, showConfirmButton: false });
+            } else {
+              Swal.fire('Error', 'Hubo un problema al instalar Npcap.', 'error');
+              return;
+            }
+          } else {
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
+    await fetchInterfaces();
+    setIsInterfaceModalOpen(true);
   };
 
   return (
@@ -284,26 +593,38 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 select-none">
         <div>
         </div>
-        <div className="flex items-center gap-3 mt-4 md:mt-0">
+        <div className="flex items-center gap-3 mt-4 md:mt-0 flex-wrap">
+
           <button 
-            onClick={handleLoadAnalysis}
+            onClick={handleOpenInterfaceModal}
             className="flex items-center gap-2 border px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors bg-white border-[#E2E8F0] text-slate-700 hover:bg-[#F1F5F9]"
           >
-            <span className="material-symbols-outlined text-[18px]">folder_open</span>
-            Cargar Análisis
+            <span className="material-symbols-outlined text-[18px]">settings_ethernet</span>
+            Registrar Interfaz
           </button>
-          <button 
-            onClick={toggleMonitoring}
-            className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors ${isMonitoring ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-white border-[#E2E8F0] text-slate-700 hover:bg-[#F1F5F9]'}`}
-          >
-            <span className="material-symbols-outlined text-[18px]">visibility</span>
-            {isMonitoring ? 'Detener Monitoreo' : 'Iniciar Monitoreo (Pasivo)'}
-          </button>
-          <button className="flex items-center gap-2 bg-primary hover:bg-opacity-95 text-white px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors">
-            <span className="material-symbols-outlined text-[18px]">query_stats</span>
-            Iniciar Análisis (Activo)
-          </button>
-        </div>
+                    <button 
+                      onClick={toggleMonitoring}
+                      className="px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 w-full md:w-auto shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">{isMonitoring ? 'stop_circle' : 'play_circle'}</span>
+                      {isMonitoring ? 'Detener Monitoreo Pasivo' : 'Monitoreo Pasivo'}
+                    </button>
+                    <button 
+                      onClick={handleStartActiveAnalysis}
+                      disabled={isMonitoring}
+                      className="px-6 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 w-full md:w-auto disabled:opacity-50 shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">radar</span>
+                      Análisis Activo
+                    </button>
+                    <button 
+                      onClick={handleOpenLoadAnalysis}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 w-full md:w-auto shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">history</span>
+                      Cargar Análisis
+                    </button>
+                  </div>
       </div>
 
       {/* Global Traffic Metrics */}
@@ -314,7 +635,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Paquetes / Segundo</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">{isMonitoring ? trafficMetrics.pps : '--'}</span>
+            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">{isMonitoring || activeAnalysisId ? trafficMetrics.pps : '--'}</span>
             <span className="text-sm text-[#64748B] mb-1 font-bold">pps</span>
           </div>
         </div>
@@ -325,7 +646,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Tasa de Datos</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">{isMonitoring ? trafficMetrics.mbps : '--'}</span>
+            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">{isMonitoring || activeAnalysisId ? trafficMetrics.mbps : '--'}</span>
             <span className="text-sm text-[#64748B] mb-1 font-bold">Mbps</span>
           </div>
         </div>
@@ -336,7 +657,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Pérdida de Paquetes</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#F59E0B] font-mono">{isMonitoring ? trafficMetrics.loss : '--'}</span>
+            <span className="text-3xl font-extrabold text-[#F59E0B] font-mono">{isMonitoring || activeAnalysisId ? trafficMetrics.loss : '--'}</span>
             <span className="text-sm text-[#64748B] mb-1 font-bold">%</span>
           </div>
         </div>
@@ -350,83 +671,21 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         </h2>
         
         <div className="grid grid-cols-12 gap-6">
-          {/* TCP Card */}
-          <div className="col-span-12 md:col-span-4 bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">Tráfico TCP</p>
-                <h3 className={`text-2xl font-bold mt-1 font-sans ${isMonitoring ? 'text-primary' : 'text-slate-300'}`}>
-                  {isMonitoring ? packetStats.tcp : '--'} Pkts
-                </h3>
-              </div>
-              <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border uppercase ${isMonitoring ? 'bg-[#F0FDF4] text-[#166534] border-[#D1FAE5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
-                {isMonitoring ? 'Activo' : 'Esperando'}
-              </span>
-            </div>
-            <div className="h-16 w-full mt-4 flex items-center justify-center">
-              {isMonitoring ? (
-                <div className="w-full flex gap-1 items-end h-full">
-                  {[...Array(12)].map((_, i) => (
-                    <div key={i} className="flex-1 bg-primary rounded-t-sm" style={{ height: `${Math.max(20, Math.random() * 100)}%` }}></div>
-                  ))}
+          {protocolSlices.slice(0, 3).map((s, idx) => (
+            <div key={idx} className="col-span-12 md:col-span-4 bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">Tráfico {s.name}</p>
+                  <h3 className={`text-2xl font-bold mt-1 font-sans ${isMonitoring ? 'text-primary' : 'text-slate-300'}`}>
+                    {isMonitoring ? s.count : '--'} Pkts
+                  </h3>
                 </div>
-              ) : (
-                <span className="text-xs text-slate-400 italic">Sin datos</span>
-              )}
-            </div>
-          </div>
-
-          {/* UDP Card */}
-          <div className="col-span-12 md:col-span-4 bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">Tráfico UDP</p>
-                <h3 className={`text-2xl font-bold mt-1 font-sans ${isMonitoring ? 'text-purple-600' : 'text-slate-300'}`}>
-                  {isMonitoring ? packetStats.udp : '--'} Pkts
-                </h3>
+                <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border uppercase ${isMonitoring ? 'bg-[#F0FDF4] text-[#166534] border-[#D1FAE5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
+                  {isMonitoring ? 'Activo' : 'Esperando'}
+                </span>
               </div>
-              <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border uppercase ${isMonitoring ? 'bg-purple-50 text-purple-700 border-purple-100' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
-                {isMonitoring ? 'Activo' : 'Esperando'}
-              </span>
             </div>
-            <div className="h-16 w-full mt-4 flex items-center justify-center">
-              {isMonitoring ? (
-                <div className="w-full flex gap-1 items-end h-full">
-                  {[...Array(12)].map((_, i) => (
-                    <div key={i} className="flex-1 bg-purple-500 rounded-t-sm" style={{ height: `${Math.max(20, Math.random() * 100)}%` }}></div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400 italic">Sin datos</span>
-              )}
-            </div>
-          </div>
-
-          {/* ICMP Card */}
-          <div className="col-span-12 md:col-span-4 bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="font-sans text-[10px] uppercase font-bold tracking-wider text-[#64748B]">Tráfico ICMP</p>
-                <h3 className={`text-2xl font-bold mt-1 font-sans ${isMonitoring ? 'text-orange-500' : 'text-slate-300'}`}>
-                  {isMonitoring ? packetStats.icmp : '--'} Pkts
-                </h3>
-              </div>
-              <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border uppercase ${isMonitoring ? 'bg-orange-50 text-orange-700 border-orange-100' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
-                {isMonitoring ? 'Activo' : 'Esperando'}
-              </span>
-            </div>
-            <div className="h-16 w-full mt-4 flex items-center justify-center">
-              {isMonitoring ? (
-                <div className="w-full flex gap-1 items-end h-full">
-                  {[...Array(12)].map((_, i) => (
-                    <div key={i} className="flex-1 bg-orange-400 rounded-t-sm" style={{ height: `${Math.max(20, Math.random() * 100)}%` }}></div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400 italic">Sin datos</span>
-              )}
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
@@ -442,18 +701,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center p-8 gap-8">
-          {/* Donut chart widget */}
           <div className={`relative w-72 h-72 flex-shrink-0 select-none ${isMonitoring ? '' : 'opacity-50'}`}>
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
               <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#F1F5F9" strokeWidth="3" />
-              {isMonitoring && packetStats.total > 0 && (
-                <>
-                  <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#4F46E5" strokeWidth="3" strokeDasharray={tcpDasharray} strokeDashoffset={tcpOffset} />
-                  <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#9333EA" strokeWidth="3" strokeDasharray={udpDasharray} strokeDashoffset={udpOffset} />
-                  <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#F97316" strokeWidth="3" strokeDasharray={icmpDasharray} strokeDashoffset={icmpOffset} />
-                  <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#94A3B8" strokeWidth="3" strokeDasharray={otherDasharray} strokeDashoffset={otherOffset} />
-                </>
-              )}
+              {isMonitoring && packetStats.total > 0 && protocolSlices.map((s, i) => (
+                <circle key={i} cx="18" cy="18" fill="transparent" r="15.915" stroke={s.color} strokeWidth="3" strokeDasharray={s.dasharray} strokeDashoffset={s.offset} />
+              ))}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <span className={`text-4xl font-extrabold ${isMonitoring ? 'text-[#0F172A]' : 'text-slate-300'}`}>
@@ -465,32 +718,20 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             </div>
           </div>
 
-          {/* Details */}
           <div className="flex-1 max-w-xl flex items-center justify-center border border-[#E2E8F0] rounded-xl bg-white min-h-[200px] shadow-sm">
             {isMonitoring ? (
               <div className="w-full p-6 space-y-4">
-                {tcpPct > 0 && (
-                  <div className="flex justify-between items-center pb-3 border-b border-[#F1F5F9]">
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-primary"></span><span className="text-sm font-bold text-[#1E293B]">TCP</span></div>
-                    <span className="text-sm font-mono text-[#64748B]">{tcpPct}%</span>
+                {protocolSlices.map((s, i) => (
+                  <div key={i} className="flex justify-between items-center group hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full shadow-inner" style={{ backgroundColor: s.color }}></div>
+                      <span className="font-semibold text-slate-700">{s.name}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="font-bold text-slate-800 tabular-nums w-12 text-right">{s.pct}%</span>
+                    </div>
                   </div>
-                )}
-                {udpPct > 0 && (
-                  <div className="flex justify-between items-center pb-3 border-b border-[#F1F5F9]">
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-purple-600"></span><span className="text-sm font-bold text-[#1E293B]">UDP</span></div>
-                    <span className="text-sm font-mono text-[#64748B]">{udpPct}%</span>
-                  </div>
-                )}
-                {icmpPct > 0 && (
-                  <div className="flex justify-between items-center pb-3 border-b border-[#F1F5F9]">
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500"></span><span className="text-sm font-bold text-[#1E293B]">ICMP</span></div>
-                    <span className="text-sm font-mono text-[#64748B]">{icmpPct}%</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-slate-400"></span><span className="text-sm font-bold text-[#1E293B]">Otros</span></div>
-                  <span className="text-sm font-mono text-[#64748B]">{otherPct}%</span>
-                </div>
+                ))}
               </div>
             ) : (
               <p className="text-sm text-slate-400 italic font-sans text-center px-8 bg-slate-50 w-full h-full flex items-center justify-center rounded-xl border border-dashed border-slate-200">
@@ -510,7 +751,6 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
         <div className="grid grid-cols-12 gap-6">
 
-          {/* Widget 1: Interactive PING Test tool */}
           <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-4 select-none">
               <span className="material-symbols-outlined text-primary text-xl">router</span>
@@ -544,7 +784,6 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                 </span>
               </div>
 
-              {/* Ping Replies details window */}
               {pingLogs.length > 0 ? (
                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 font-mono text-[11px] text-indigo-200 space-y-1 h-[120px] overflow-y-auto mb-3 flex flex-col-reverse">
                   <div>
@@ -574,7 +813,6 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             </div>
           </div>
 
-          {/* Widget 2: Route Trace widget */}
           <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-4 select-none">
               <span className="material-symbols-outlined text-primary text-xl">alt_route</span>
@@ -634,7 +872,318 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
               )}
             </div>
           </div>
+        </div>
+      </section>
 
+      {/* Network Devices List Modal */}
+      <Modal
+        isOpen={isDevicesModalOpen}
+        onClose={() => setIsDevicesModalOpen(false)}
+        title="Gestión de Dispositivos de Red"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-slate-600">Dispositivos registrados en la infraestructura de red</p>
+            <button
+              onClick={() => setIsAddDeviceModalOpen(true)}
+              className="bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-opacity-90 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              Nuevo Dispositivo
+            </button>
+          </div>
+
+          <div className="overflow-x-auto border border-[#E2E8F0] rounded-xl">
+            <table className="w-full text-left text-xs font-sans">
+              <thead className="bg-[#F8FAFC] text-[#64748B] font-bold border-b border-[#E2E8F0]">
+                <tr>
+                  <th className="p-3">Nombre</th>
+                  <th className="p-3">Tipo</th>
+                  <th className="p-3">IP</th>
+                  <th className="p-3">MAC</th>
+                  <th className="p-3">Estado</th>
+                  <th className="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0]">
+                {devicesList.length > 0 ? (
+                  devicesList.map((dev) => (
+                    <tr key={dev.idDispositivo} className="hover:bg-slate-50">
+                      <td className="p-3 font-semibold text-slate-900">{dev.nombre}</td>
+                      <td className="p-3 text-slate-600">{dev.tipo}</td>
+                      <td className="p-3 font-mono text-slate-700">{dev.direccionIP}</td>
+                      <td className="p-3 font-mono text-slate-500">{dev.direccionMAC || 'N/A'}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 text-[10px] rounded-full font-bold uppercase ${dev.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {dev.estado || 'Activo'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right space-x-2">
+                        <button
+                          onClick={() => setSelectedDevice(dev)}
+                          className="text-primary hover:underline font-semibold cursor-pointer"
+                        >
+                          Detalles
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDevice(dev.idDispositivo)}
+                          className="text-red-500 hover:underline font-semibold cursor-pointer"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="p-4 text-center text-slate-400 italic">
+                      No hay dispositivos registrados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add New Device Modal */}
+      <Modal
+        isOpen={isAddDeviceModalOpen}
+        onClose={() => setIsAddDeviceModalOpen(false)}
+        title="Registrar Nuevo Dispositivo"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Nombre</label>
+            <input
+              type="text"
+              value={newDeviceData.nombre}
+              onChange={(e) => setNewDeviceData({ ...newDeviceData, nombre: e.target.value })}
+              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs text-slate-800"
+              placeholder="ej. Router Principal Norte"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Tipo</label>
+              <select
+                value={newDeviceData.tipo}
+                onChange={(e) => setNewDeviceData({ ...newDeviceData, tipo: e.target.value })}
+                className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs text-slate-800"
+              >
+                <option value="Router">Router</option>
+                <option value="Switch">Switch</option>
+                <option value="Firewall">Firewall</option>
+                <option value="Servidor">Servidor</option>
+                <option value="Access Point">Access Point</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Estado</label>
+              <select
+                value={newDeviceData.estado}
+                onChange={(e) => setNewDeviceData({ ...newDeviceData, estado: e.target.value })}
+                className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs text-slate-800"
+              >
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Dirección IP</label>
+            <input
+              type="text"
+              value={newDeviceData.direccionIP}
+              onChange={(e) => setNewDeviceData({ ...newDeviceData, direccionIP: e.target.value })}
+              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs font-mono text-slate-800"
+              placeholder="192.168.1.1"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Dirección MAC</label>
+            <input
+              type="text"
+              value={newDeviceData.direccionMAC}
+              onChange={(e) => setNewDeviceData({ ...newDeviceData, direccionMAC: e.target.value })}
+              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs font-mono text-slate-800"
+              placeholder="00:11:22:33:44:55"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setIsAddDeviceModalOpen(false)}
+              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-semibold text-slate-700"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleCreateDevice}
+              className="px-4 py-2 bg-primary hover:bg-opacity-90 rounded-lg text-xs font-semibold text-white"
+            >
+              Guardar Dispositivo
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Selected Device Details Modal */}
+      {selectedDevice && (
+        <Modal
+          isOpen={!!selectedDevice}
+          onClose={() => setSelectedDevice(null)}
+          title={`Detalles de Dispositivo: ${selectedDevice.nombre}`}
+          size="md"
+        >
+          <div className="space-y-3 font-sans text-xs">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">ID Dispositivo:</span>
+                <span className="font-mono text-slate-800">{selectedDevice.idDispositivo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Nombre:</span>
+                <span className="text-slate-800">{selectedDevice.nombre}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Tipo:</span>
+                <span className="text-slate-800">{selectedDevice.tipo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">IP:</span>
+                <span className="font-mono text-slate-800">{selectedDevice.direccionIP}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">MAC:</span>
+                <span className="font-mono text-slate-800">{selectedDevice.direccionMAC || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Estado:</span>
+                <span className="font-bold text-emerald-600">{selectedDevice.estado}</span>
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSelectedDevice(null)}
+                className="px-4 py-2 bg-primary text-white rounded-lg font-semibold"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Register Interface Modal */}
+      <Modal
+        isOpen={isInterfaceModalOpen}
+        onClose={() => setIsInterfaceModalOpen(false)}
+        title="Vincular Interfaz de Red"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">ID de Análisis Activo</label>
+            <input
+              type="number"
+              disabled={true}
+              value={interfaceData.idAnalisis}
+              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs font-mono text-slate-500 cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Interfaz</label>
+            <select
+              value={interfaceData.nombreInterfaz}
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                const selectedIface = availableInterfaces.find(iface => iface.name.startsWith(`${selectedId}.`));
+                setInterfaceData({ 
+                  ...interfaceData, 
+                  nombreInterfaz: selectedId, 
+                  macAddress: selectedIface ? selectedIface.mac : '00:00:00:00:00:00' 
+                });
+              }}
+              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs text-slate-800 cursor-pointer"
+            >
+              {availableInterfaces.length === 0 && <option value="1">1. Default Interface</option>}
+              {availableInterfaces.map(iface => {
+                const id = iface.name.split('.')[0];
+                return <option key={id} value={id}>{iface.name}</option>;
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Dirección MAC</label>
+            <input
+              type="text"
+              disabled={true}
+              value={interfaceData.macAddress}
+              className="w-full bg-[#F1F5F9] border-none rounded-lg px-3 py-2 text-xs font-mono text-slate-500 cursor-not-allowed"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setIsInterfaceModalOpen(false)}
+              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-semibold text-slate-700"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleRegisterInterface}
+              className="px-4 py-2 bg-primary hover:bg-opacity-90 rounded-lg text-xs font-semibold text-white"
+            >
+              Vincular Interfaz
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Flujo de Paquetes en Vivo */}
+      <section className="bg-white border border-[#E2E8F0] p-6 rounded-2xl shadow-sm mt-6 mb-10 overflow-hidden">
+        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <span className="material-symbols-outlined text-indigo-500">list_alt</span>
+          Flujo de Paquetes (En Vivo)
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="p-3">ID</th>
+                <th className="p-3">Protocolo</th>
+                <th className="p-3">Fuente</th>
+                <th className="p-3">Destino</th>
+                <th className="p-3">Tamaño</th>
+                <th className="p-3">Info</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {packetStream.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-400 italic">No hay paquetes capturados en la sesión actual...</td>
+                </tr>
+              ) : (
+                packetStream.map((pkt, i) => (
+                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-slate-500 font-mono text-xs">{pkt.id}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${pkt.tipoPaquete === 'TCP' ? 'bg-blue-100 text-blue-700' : pkt.tipoPaquete === 'UDP' ? 'bg-orange-100 text-orange-700' : pkt.tipoPaquete === 'ICMP' ? 'bg-green-100 text-green-700' : pkt.tipoPaquete === 'TLSv1.2' || pkt.tipoPaquete === 'TLSv1.3' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
+                        {pkt.tipoPaquete}
+                      </span>
+                    </td>
+                    <td className="p-3 font-mono text-xs text-slate-700">{pkt.fuente}</td>
+                    <td className="p-3 font-mono text-xs text-slate-700">{pkt.destino}</td>
+                    <td className="p-3 font-mono text-xs text-slate-500">{pkt.longitud ? `${pkt.longitud} B` : '--'}</td>
+                    <td className="p-3 text-slate-600 truncate max-w-xs" title={pkt.contenidos || pkt.respuesta}>{pkt.contenidos || pkt.respuesta}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

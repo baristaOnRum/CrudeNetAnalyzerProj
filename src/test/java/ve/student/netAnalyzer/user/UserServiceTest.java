@@ -4,6 +4,7 @@ import ve.student.netAnalyzer.service.UserServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import ve.student.netAnalyzer.model.AppRole;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -67,7 +68,7 @@ public class UserServiceTest {
 
     @Test
     void testModifyUser_UpdatesFields() {
-        AppUser user = new AppUser("user1", "pass", "USER");
+        AppUser user = new AppUser("user1", "pass", AppRole.USER);
         user.setId(1L);
 
         when(repository.findById(1L)).thenReturn(Optional.of(user));
@@ -80,7 +81,7 @@ public class UserServiceTest {
         AppUser result = service.modifyUser(1L, dto);
 
         assertEquals("user2", result.getNombre());
-        assertEquals("ADMIN", result.getRol());
+        assertEquals(AppRole.ADMIN, result.getRol());
         verify(repository, times(1)).save(any(AppUser.class));
     }
 }

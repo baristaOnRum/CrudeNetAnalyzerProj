@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Modal } from './common/Modal';
 
 interface NetworkPacket {
   id: string;
@@ -21,14 +22,14 @@ interface PacketManagementProps {
   activeAnalysisId: number | null;
 }
 
-const RANDOM_IPS = ['192.168.1.104', '10.0.0.5', '8.8.8.8', '172.16.0.1', '142.250.190.46'];
-const PROTOCOLS = ['TCP', 'UDP', 'ICMP', 'DNS', 'HTTPS'];
+
 
 export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalysisId }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [packets, setPackets] = useState<NetworkPacket[]>([]);
   const [exportingState, setExportingState] = useState<'idle' | 'exporting'>('idle');
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [selectedPacket, setSelectedPacket] = useState<NetworkPacket | null>(null);
 
   // Filters
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -38,65 +39,48 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
   const [filterContent, setFilterContent] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const fetchPackets = async () => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchPackets = async (page = 0) => {
     try {
-      const res = await fetch('/api/packets');
+      const res = await fetch(`/api/packets?page=${page}&size=100`);
       if (res.ok) {
         const data = await res.json();
-        const mapped = data.map((p: any) => ({
+        const rawList = data.content ?? data;
+        if (data.totalPages !== undefined) {
+          setTotalPages(data.totalPages);
+          setCurrentPage(data.number);
+        }
+        const mapped = rawList.map((p: any) => ({
           id: p.id ? `PKT-${p.id}` : `PKT-${Math.floor(Math.random() * 90000)}`,
           timestamp: new Date().toISOString().substring(11, 23),
           sourceIp: p.fuente,
           destIp: p.destino,
           protocol: p.tipoPaquete,
           content: p.contenidos || '',
-          length: p.contenidos ? p.contenidos.length : 128,
+          length: p.longitud ?? (p.contenidos ? p.contenidos.length : 128),
           status: 'allowed',
           idAnalisis: p.idAnalisis
         }));
-        // Since we want newest first, we reverse it
-        setPackets(mapped.reverse().slice(0, 15));
+        setPackets(mapped);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Inject random packets into the DB to simulate real traffic
-  const injectPacket = async () => {
-    const protocol = PROTOCOLS[Math.floor(Math.random() * PROTOCOLS.length)];
-    const sourceIp = RANDOM_IPS[Math.floor(Math.random() * RANDOM_IPS.length)];
-    const destIp = RANDOM_IPS[Math.floor(Math.random() * RANDOM_IPS.length)];
-    const payload = {
-      tipoPaquete: protocol,
-      contenidos: "PAYLOAD_SIMULATED_" + Math.random(),
-      fuente: sourceIp,
-      destino: destIp,
-      respuesta: "ACK",
-      tiempoRespuesta: Math.floor(Math.random() * 50),
-      idAnalisis: activeAnalysisId
-    };
-    try {
-      await fetch('/api/packets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      fetchPackets();
-    } catch (e) {}
-  };
-
   useEffect(() => {
-    fetchPackets();
+    fetchPackets(0);
   }, []);
 
   useEffect(() => {
     if (!isPlaying) return;
     const timer = setInterval(() => {
-      injectPacket();
+      fetchPackets(currentPage);
     }, 1800);
     return () => clearInterval(timer);
-  }, [isPlaying, activeAnalysisId]);
+  }, [isPlaying, activeAnalysisId, currentPage]);
 
   const handleTogglePlay = () => setIsPlaying(!isPlaying);
 
@@ -123,22 +107,48 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
     return true;
   });
 
-  const handleExport = (type: 'CSV' | 'JSON') => {
+  const handleExport = async (type: 'CSV' | 'JSON') => {
     setExportingState('exporting');
     setExportMessage(`Preparando salida ${type}...`);
-    setTimeout(() => {
-      setExportingState('idle');
-      const exportContent = JSON.stringify(packets, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(exportContent);
+    
+    if (activeAnalysisId) {
+      try {
+        const response = await fetch(`/api/packets/export/${activeAnalysisId}?format=${type}`);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `session_${activeAnalysisId}_packets.${type.toLowerCase()}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        }
+      } catch (e) {
+        console.error('Failed to export from backend', e);
+      }
+    } else {
+      let exportContent = '';
+      if (type === 'CSV') {
+        exportContent = 'id,timestamp,sourceIp,destIp,protocol,length,content\n';
+        exportContent += packets.map(p => `${p.id},${p.timestamp},${p.sourceIp},${p.destIp},${p.protocol},${p.length},${p.content}`).join('\n');
+      } else {
+        exportContent = JSON.stringify(packets, null, 2);
+      }
+      
+      const dataUri = `data:text/${type === 'CSV' ? 'csv' : 'json'};charset=utf-8,` + encodeURIComponent(exportContent);
       const a = document.createElement('a');
       a.href = dataUri;
       a.download = `packets_export.${type.toLowerCase()}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setExportMessage(`Archivo guardado.`);
-      setTimeout(() => setExportMessage(null), 3000);
-    }, 1000);
+    }
+    
+    setExportingState('idle');
+    setExportMessage(`Archivo guardado.`);
+    setTimeout(() => setExportMessage(null), 3000);
   };
 
   const getBadge = (proto: string) => {
@@ -232,7 +242,8 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
                 <th className="p-4">IP de Origen</th>
                 <th className="p-4">IP de Destino</th>
                 <th className="p-4">Protocolo</th>
-                <th className="p-4 text-right pr-6">Longitud (B)</th>
+                <th className="p-4 text-right">Longitud (B)</th>
+                <th className="p-4 text-right pr-6">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] text-[13px] font-medium text-[#1E293B]">
@@ -242,12 +253,21 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
                   <td className="p-4 font-semibold text-[#0F172A]">{pkt.sourceIp}</td>
                   <td className="p-4 text-[#1E293B]">{pkt.destIp}</td>
                   <td className="p-4"><span className={`px-2.5 py-0.5 rounded-full text-[11px] font-sans font-semibold tracking-wide ${getBadge(pkt.protocol)} border`}>{pkt.protocol}</span></td>
-                  <td className="p-4 text-right pr-6 font-semibold">{pkt.length}</td>
+                  <td className="p-4 text-right font-semibold">{pkt.length}</td>
+                  <td className="p-4 text-right pr-6">
+                    <button
+                      onClick={() => setSelectedPacket(pkt)}
+                      className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-primary border border-primary/20 rounded-md text-xs font-sans font-semibold flex items-center justify-end gap-1 ml-auto transition-colors cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">visibility</span>
+                      Ver Detalle
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filteredPackets.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-[#64748B] font-sans text-xs">
+                  <td colSpan={6} className="p-8 text-center text-[#64748B] font-sans text-xs">
                     No se encontraron paquetes para los filtros actuales.
                   </td>
                 </tr>
@@ -255,7 +275,55 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center p-4 border-t border-[#E2E8F0] bg-slate-50 rounded-b-xl">
+            <span className="text-xs text-slate-500 font-sans">
+              Mostrando página {currentPage + 1} de {totalPages} &mdash; 100 paquetes por página
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 0}
+                onClick={() => fetchPackets(currentPage - 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                Anterior
+              </button>
+              <button
+                disabled={currentPage >= totalPages - 1}
+                onClick={() => fetchPackets(currentPage + 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Packet Detail Modal */}
+      {selectedPacket && (
+        <Modal
+          isOpen={!!selectedPacket}
+          onClose={() => setSelectedPacket(null)}
+          title={`Detalle de Paquete: ${selectedPacket.id}`}
+          subtitle="Metadatos y carga útil decodificada de la trama de red"
+          icon="inventory_2"
+          badge={{ text: selectedPacket.protocol, variant: selectedPacket.protocol === 'TCP' ? 'purple' : 'blue' }}
+          fields={[
+            { label: 'ID Transacción', value: selectedPacket.id },
+            { label: 'Marca de Tiempo', value: selectedPacket.timestamp },
+            { label: 'Dirección IP Origen', value: selectedPacket.sourceIp },
+            { label: 'Dirección IP Destino', value: selectedPacket.destIp },
+            { label: 'Protocolo de Red', value: selectedPacket.protocol },
+            { label: 'Tamaño de Carga (Bytes)', value: `${selectedPacket.length} B` },
+            { label: 'ID Sesión de Análisis', value: selectedPacket.idAnalisis ? `#${selectedPacket.idAnalisis}` : 'Global / Pasivo' },
+            { label: 'Estado de Inspección', value: 'PERMITIDO / INTEGRIDAD VALIDADA' },
+            { label: 'Payload Decodificado', value: selectedPacket.content || 'Sin datos de carga útil.', fullWidth: true, isCode: true }
+          ]}
+        />
+      )}
     </div>
   );
 };

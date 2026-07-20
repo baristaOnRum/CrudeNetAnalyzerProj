@@ -36,18 +36,31 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     @Override
     public DbConnectionDto getCurrentDatabaseConnection() {
+        if (persistentDbConfig != null) {
+            return persistentDbConfig;
+        }
         DbConnectionDto dto = new DbConnectionDto();
         dto.setUrl(currentUrl);
         dto.setUsername(currentUsername);
         dto.setPassword(currentPassword);
+        if (currentUrl != null) {
+            if (currentUrl.startsWith("jdbc:postgresql")) {
+                dto.setDbType("postgresql");
+            } else if (currentUrl.startsWith("jdbc:sqlite")) {
+                dto.setDbType("sqlite");
+            } else if (currentUrl.startsWith("jdbc:mysql")) {
+                dto.setDbType("mysql");
+            } else if (currentUrl.startsWith("jdbc:h2")) {
+                dto.setDbType("h2");
+            }
+        }
         return dto;
     }
 
     @Override
     public ConfigParameter modifyParameter(String key, String value) {
         ConfigParameter param = repository.findByNombreConfiguracion(key)
-                .orElse(new ConfigParameter());
-        param.setNombreConfiguracion(key);
+                .orElseThrow(() -> new RuntimeException("Parámetro no encontrado"));
         param.setValorSeleccionado(value);
         return repository.save(param);
     }
@@ -57,17 +70,50 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         this.persistentDbConfig = dbConfig;
         
         try {
-            String driverClass = dbConfig.getUrl() != null && dbConfig.getUrl().startsWith("jdbc:postgresql") 
-                    ? "org.postgresql.Driver" : "org.sqlite.JDBC";
-            String dialect = dbConfig.getUrl() != null && dbConfig.getUrl().startsWith("jdbc:postgresql") 
-                    ? "org.hibernate.dialect.PostgreSQLDialect" : "org.hibernate.community.dialect.SQLiteDialect";
+            String dbType = dbConfig.getDbType();
+            String url = dbConfig.getUrl();
+            
+            if (url == null || url.trim().isEmpty()) {
+                String host = dbConfig.getHost() != null && !dbConfig.getHost().trim().isEmpty() ? dbConfig.getHost() : "127.0.0.1";
+                String port = dbConfig.getPort() != null && !dbConfig.getPort().trim().isEmpty() ? dbConfig.getPort() : "5432";
+                String name = dbConfig.getName() != null && !dbConfig.getName().trim().isEmpty() ? dbConfig.getName() : "netanalyzer_db";
+
+                if ("postgresql".equalsIgnoreCase(dbType)) {
+                    url = "jdbc:postgresql://" + host + ":" + port + "/" + name;
+                } else if ("mysql".equalsIgnoreCase(dbType)) {
+                    url = "jdbc:mysql://" + host + ":" + port + "/" + name;
+                } else if ("h2".equalsIgnoreCase(dbType)) {
+                    url = "jdbc:h2:mem:" + name;
+                } else {
+                    dbType = "sqlite";
+                    url = "jdbc:sqlite:" + name + ".db";
+                }
+                dbConfig.setUrl(url);
+            }
+
+            String driverClass;
+            String dialect;
+
+            if (url.startsWith("jdbc:postgresql") || "postgresql".equalsIgnoreCase(dbType)) {
+                driverClass = "org.postgresql.Driver";
+                dialect = "org.hibernate.dialect.PostgreSQLDialect";
+            } else if (url.startsWith("jdbc:mysql") || "mysql".equalsIgnoreCase(dbType)) {
+                driverClass = "com.mysql.cj.jdbc.Driver";
+                dialect = "org.hibernate.dialect.MySQLDialect";
+            } else if (url.startsWith("jdbc:h2") || "h2".equalsIgnoreCase(dbType)) {
+                driverClass = "org.h2.Driver";
+                dialect = "org.hibernate.dialect.H2Dialect";
+            } else {
+                driverClass = "org.sqlite.JDBC";
+                dialect = "org.hibernate.community.dialect.SQLiteDialect";
+            }
             
             StringBuilder yaml = new StringBuilder();
             yaml.append("spring:\n");
             yaml.append("  application:\n");
             yaml.append("    name: netAnalyzer\n");
             yaml.append("  datasource:\n");
-            yaml.append("    url: ").append(dbConfig.getUrl()).append("\n");
+            yaml.append("    url: ").append(url).append("\n");
             yaml.append("    driver-class-name: ").append(driverClass).append("\n");
             
             if (dbConfig.getUsername() != null && !dbConfig.getUsername().trim().isEmpty()) {

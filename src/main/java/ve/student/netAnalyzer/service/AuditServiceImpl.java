@@ -61,7 +61,27 @@ public class AuditServiceImpl implements AuditService {
         Audit audit = getAuditDetails(auditId);
         if (audit == null) return new byte[0];
         
-        String content = "Audit ID: " + audit.getIdSesion() + ", Name: " + audit.getNombreAuditoria() + ", User: " + (audit.getUsuario() != null ? audit.getUsuario().getId() : "null");
-        return content.getBytes();
+        StringBuilder sb = new StringBuilder();
+        if (fmt == ExportFormat.CSV) {
+            sb.append("idSesion,nombreAuditoria,detalleCambio,fechaHora,idUsuario\n");
+            sb.append(audit.getIdSesion() != null ? audit.getIdSesion() : "").append(",")
+              .append(audit.getNombreAuditoria() != null ? audit.getNombreAuditoria() : "").append(",")
+              .append(audit.getDetalleCambio() != null ? audit.getDetalleCambio().replace("\n", " ").replace(",", ";") : "").append(",")
+              .append(audit.getFechaHora() != null ? audit.getFechaHora() : "").append(",")
+              .append(audit.getUsuario() != null ? audit.getUsuario().getId() : "").append("\n");
+        } else if (fmt == ExportFormat.JSON) {
+            sb.append("{\n")
+              .append("  \"idSesion\": \"").append(audit.getIdSesion()).append("\",\n")
+              .append("  \"nombreAuditoria\": \"").append(audit.getNombreAuditoria()).append("\",\n")
+              .append("  \"detalleCambio\": \"").append(audit.getDetalleCambio() != null ? audit.getDetalleCambio().replace("\n", "\\n") : "").append("\",\n")
+              .append("  \"fechaHora\": \"").append(audit.getFechaHora()).append("\",\n")
+              .append("  \"idUsuario\": \"").append(audit.getUsuario() != null ? audit.getUsuario().getId() : "").append("\"\n")
+              .append("}\n");
+        } else {
+            sb.append("Audit ID: ").append(audit.getIdSesion())
+              .append(", Name: ").append(audit.getNombreAuditoria())
+              .append(", User: ").append(audit.getUsuario() != null ? audit.getUsuario().getId() : "null");
+        }
+        return sb.toString().getBytes();
     }
 }

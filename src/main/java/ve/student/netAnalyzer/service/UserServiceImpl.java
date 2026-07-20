@@ -1,6 +1,7 @@
 package ve.student.netAnalyzer.service;
 
 import org.springframework.stereotype.Service;
+import ve.student.netAnalyzer.model.AppRole;
 import ve.student.netAnalyzer.model.AppUser;
 import ve.student.netAnalyzer.dto.UserRegistrationDto;
 import ve.student.netAnalyzer.dto.UserUpdateDto;
@@ -28,7 +29,7 @@ public class UserServiceImpl implements UserService {
         if (userRepository.findByNombre(userData.getNombre()).isPresent()) {
             throw new RuntimeException("El usuario ya existe");
         }
-        AppUser user = new AppUser(userData.getNombre(), userData.getPassHasheada(), userData.getRol());
+        AppUser user = new AppUser(userData.getNombre(), userData.getPassHasheada(), AppRole.valueOf(userData.getRol().toUpperCase()));
         return userRepository.save(user);
     }
 
@@ -51,7 +52,7 @@ public class UserServiceImpl implements UserService {
             user.setNombre(newData.getNombre());
         }
         if (newData.getRol() != null) {
-            user.setRol(newData.getRol());
+            user.setRol(AppRole.valueOf(newData.getRol().toUpperCase()));
         }
         return userRepository.save(user);
     }

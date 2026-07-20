@@ -161,14 +161,14 @@ tasks.register('copyFrontend', Copy) {
 
 tasks.register('runFrontend', Exec) {
 	group = 'application'
-	description = 'Runs the frontend dev server on port 5173'
+	description = 'Launches the Electron desktop application (requires backend running on port 8585)'
 	workingDir 'frontend'
 	
 	def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
 	if (isWindows) {
-		commandLine 'cmd', '/c', 'npm run dev -- --port 5173'
+		commandLine 'cmd', '/c', 'npm run electron:dev'
 	} else {
-		commandLine 'npm', 'run', 'dev', '--', '--port', '5173'
+		commandLine 'npm', 'run', 'electron:dev'
 	}
 }
 
@@ -176,4 +176,73 @@ tasks.register('runBackend') {
 	group = 'application'
 	description = 'Alias for bootRun to start the backend on port 8585'
 	dependsOn 'bootRun'
+}
+
+tasks.register('runApp') {
+	group = 'application'
+	description = 'Starts Spring Boot + Vite dev server in background, then launches Electron'
+
+	// Capture at configuration time — compatible with Gradle configuration cache
+	def rootDir  = layout.projectDirectory.asFile
+	def frontDir = layout.projectDirectory.dir('frontend').asFile
+
+	doLast {
+		def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+
+		// 1. Kill any existing processes on port 8585 and 3000
+		println ">>> Stopping any existing processes on ports 8585 and 3000..."
+		if (isWindows) {
+			try {
+				def netstat = Runtime.getRuntime().exec("cmd /c netstat -ano")
+				def reader = new BufferedReader(new InputStreamReader(netstat.getInputStream()))
+				def pids = [] as Set
+				def line
+				while ((line = reader.readLine()) != null) {
+					if ((line.contains(":8585") || line.contains(":3000")) && line.contains("LISTENING")) {
+						def parts = line.trim().split("\\s+")
+						def pid = parts[parts.length - 1] // The last part is always the PID
+						if (pid != "0") {
+							pids.add(pid)
+						}
+					}
+				}
+				reader.close(); netstat.waitFor()
+				pids.each { pid -> 
+					println "  Killing PID ${pid} listening on port 8585 or 3000..."
+					Runtime.getRuntime().exec("cmd /c taskkill /F /T /PID ${pid}").waitFor() 
+				}
+			} catch (Exception e) { println "  Error killing processes: " + e.getMessage() }
+		}
+
+		// 2. Start Spring Boot backend in background
+		println ">>> Starting Spring Boot backend on port 8585..."
+		def backendCmd = isWindows
+			? ["cmd", "/c", "start", "/B", "gradlew.bat", "bootRun", "--args=--server.port=8585"]
+			: ["sh", "-c", "./gradlew bootRun --args='--server.port=8585' &"]
+		new ProcessBuilder(backendCmd)
+			.directory(rootDir)
+			.inheritIO()
+			.start()
+
+		// 3. Start Vite dev server in background (port 3000)
+		println ">>> Starting Vite dev server on port 3000..."
+		def viteCmd = isWindows
+			? ["cmd", "/c", "start", "/B", "npm", "run", "dev"]
+			: ["sh", "-c", "npm run dev &"]
+		new ProcessBuilder(viteCmd)
+			.directory(frontDir)
+			.inheritIO()
+			.start()
+
+		// 4. Launch Electron — main.cjs waits for both servers via waitForServer()
+		println ">>> Launching Electron (will wait for both servers to be ready)..."
+		def electronCmd = isWindows
+			? ["cmd", "/c", "npm", "run", "electron:dev"]
+			: ["npm", "run", "electron:dev"]
+		new ProcessBuilder(electronCmd)
+			.directory(frontDir)
+			.inheritIO()
+			.start()
+			.waitFor()
+	}
 }

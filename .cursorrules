@@ -1,5 +1,9 @@
 # Reglas de Inteligencia Artificial para el Proyecto
 
+La configuración de la aplicación de Graddle es application.yaml
+
+NO utilices comandos de Unix. Estás trabajando en WINDOWS
+
 Cuando el usuario realice preguntas relativas al proyecto, su contexto, avance, tareas pendientes o estado general del sistema, DEBES consultar siempre los documentos dentro de la carpeta `docs/`, en particular:
 - `docs/tareas_pendientes.md` (Para ver las tareas, MVP y ruta crítica).
 - `docs/backend_modules_outline.md` (Para ver el backlog de los módulos del backend).

@@ -19,13 +19,14 @@ public class AppUser {
     @Column(name = "pass_hasheada", nullable = false)
     private String passHasheada;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "rol", nullable = false)
-    private String rol;
+    private AppRole rol;
 
     public AppUser() {
     }
 
-    public AppUser(String nombre, String passHasheada, String rol) {
+    public AppUser(String nombre, String passHasheada, AppRole rol) {
         this.nombre = nombre;
         this.passHasheada = passHasheada;
         this.rol = rol;
@@ -55,11 +56,11 @@ public class AppUser {
         this.passHasheada = passHasheada;
     }
 
-    public String getRol() {
+    public AppRole getRol() {
         return rol;
     }
 
-    public void setRol(String rol) {
+    public void setRol(AppRole rol) {
         this.rol = rol;
     }
 }

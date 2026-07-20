@@ -26,7 +26,17 @@ export default function App() {
     setView('packets');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (session.token) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: session.token
+        });
+      } catch (e) {}
+    }
+    setSession({ name: 'Invitado', role: 'OBSERVADOR', token: '' });
     setView('uplink');
     setActiveAnalysisId(null);
   };
@@ -47,11 +57,7 @@ export default function App() {
       case 'users':
         return <UserManager currentUserRole={session.role} />;
       case 'settings':
-        return (
-          <SettingsPanel
-            onLogout={handleLogout}
-          />
-        );
+        return <SettingsPanel />;
       default:
         return <PacketManagement activeAnalysisId={activeAnalysisId} />;
     }

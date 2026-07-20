@@ -11,6 +11,12 @@ public interface AnalysisService {
     AnalysisResult analyzePacketsOnInterface(String interfaceId);
     String registerNetworkInterface(InterfaceDto dto);
     List<AnalisisRed> listAnalyses();
+    org.springframework.data.domain.Page<AnalisisRed> getAnalyses(int page, int size);
     AnalisisRed registerAnalysis(AnalysisDto data);
     AnalisisRed loadAnalysis(Long analysisId);
+    List<java.util.Map<String, String>> listInterfaces();
+    boolean isNpcapInstalled();
+    void installNpcap();
+    void stopCapture();
+    ve.student.netAnalyzer.dto.AnalysisSummary getAnalysisSummary(Long analysisId);
 }

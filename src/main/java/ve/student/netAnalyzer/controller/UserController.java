@@ -25,6 +25,15 @@ public class UserController {
         return userService.listUsers();
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<AppUser> getUserDetails(@PathVariable Long id) {
+        AppUser user = userService.getUserDetails(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(user);
+    }
+
     @PostMapping
     public ResponseEntity<AppUser> registerUser(@RequestBody UserRegistrationDto dto) {
         try {

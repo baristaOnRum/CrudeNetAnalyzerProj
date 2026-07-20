@@ -46,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
             // Comparación simple por ahora (idealmente usar Bcrypt u otro hash fuerte)
             if (credentials.getPassword().equals(user.getPassHasheada())) {
                 System.out.println("[AUTH DEBUG] Password match! Generating token.");
-                AuthToken token = generateToken(user.getRol());
+                AuthToken token = generateToken(user.getRol().name());
                 
                 // Set the active session
                 sessionManagerService.setActiveUser(user);
@@ -85,7 +85,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthToken loginAsGuest() {
-        return generateToken("GUEST");
+        Optional<AppUser> guestOpt = userRepository.findByNombre("guest");
+        if (guestOpt.isPresent()) {
+            AppUser guest = guestOpt.get();
+            AuthToken token = generateToken(guest.getRol().name());
+            sessionManagerService.setActiveUser(guest);
+            return token;
+        }
+        throw new RuntimeException("Guest user not found in database");
     }
 
     private AuthToken generateToken(String role) {

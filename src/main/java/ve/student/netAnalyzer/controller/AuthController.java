@@ -31,4 +31,14 @@ public class AuthController {
         authService.logout(token);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/guest")
+    public ResponseEntity<AuthToken> loginAsGuest() {
+        try {
+            AuthToken token = authService.loginAsGuest();
+            return ResponseEntity.ok(token);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).build();
+        }
+    }
 }

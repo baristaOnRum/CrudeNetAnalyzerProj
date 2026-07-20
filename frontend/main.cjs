@@ -6,17 +6,22 @@ const http = require('http');
 let mainWindow;
 let javaServerProcess;
 
+// En dev cargamos desde Vite (hot reload); en producción desde Spring Boot
+const isDev = !app.isPackaged;
+const FRONTEND_URL = isDev ? 'http://127.0.0.1:3000' : 'http://127.0.0.1:8585';
+const BACKEND_URL  = 'http://127.0.0.1:8585';
+
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 768,
+    width: 1280,
+    height: 800,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
     }
   });
 
-  mainWindow.loadURL('http://localhost:8585');
+  mainWindow.loadURL(FRONTEND_URL);
 
   mainWindow.on('closed', function () {
     mainWindow = null;
@@ -24,16 +29,15 @@ function createWindow() {
 }
 
 function startJavaServer() {
-  const isDev = !app.isPackaged;
-  const jarPath = isDev 
+  const jarPath = isDev
     ? path.join(__dirname, '..', 'build', 'libs', 'netAnalyzer-0.0.1-SNAPSHOT.jar')
     : path.join(process.resourcesPath, 'backend.jar');
-    
+
   const appDataPath = app.getPath('userData');
   const dbUrl = `jdbc:sqlite:${path.join(appDataPath, 'netanalyzer.db').replace(/\\/g, '/')}`;
 
-  console.log('Starting Java Server from:', jarPath);
-  console.log('Database URL:', dbUrl);
+  console.log('[Electron] Starting Java Server from:', jarPath);
+  console.log('[Electron] Database URL:', dbUrl);
 
   javaServerProcess = spawn('java', [
     '-jar', jarPath,
@@ -50,17 +54,19 @@ function startJavaServer() {
   });
 }
 
-function waitForServer(url, timeout = 30000) {
+function waitForServer(url, timeout = 60000) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
+    console.log(`[Electron] Waiting for server at ${url}...`);
     const interval = setInterval(() => {
       http.get(url, (res) => {
         clearInterval(interval);
+        console.log(`[Electron] Server ready at ${url}`);
         resolve();
-      }).on('error', (err) => {
+      }).on('error', () => {
         if (Date.now() - startTime > timeout) {
           clearInterval(interval);
-          reject(new Error('Timeout waiting for server'));
+          reject(new Error(`Timeout waiting for server at ${url}`));
         }
       });
     }, 1000);
@@ -68,13 +74,24 @@ function waitForServer(url, timeout = 30000) {
 }
 
 app.whenReady().then(async () => {
-  startJavaServer();
-  
+  // En dev, el backend ya fue iniciado por Gradle (runApp).
+  // En producción empaquetada, lo iniciamos nosotros.
+  if (!isDev) {
+    startJavaServer();
+  }
+
   try {
-    await waitForServer('http://localhost:8585');
+    // Esperar al backend siempre (para APIs)
+    await waitForServer(BACKEND_URL);
+
+    // En dev también esperar al dev server de Vite
+    if (isDev) {
+      await waitForServer(FRONTEND_URL);
+    }
+
     createWindow();
   } catch (err) {
-    console.error('Failed to connect to Java server:', err);
+    console.error('[Electron] Failed to connect to server:', err);
     app.quit();
   }
 
@@ -89,10 +106,10 @@ app.on('window-all-closed', function () {
 
 app.on('will-quit', () => {
   if (javaServerProcess) {
-    console.log('Killing Java Server');
+    console.log('[Electron] Killing Java Server');
     const isWindows = process.platform === 'win32';
     if (isWindows) {
-      spawn("taskkill", ["/pid", javaServerProcess.pid, '/f', '/t']);
+      spawn('taskkill', ['/pid', javaServerProcess.pid, '/f', '/t']);
     } else {
       javaServerProcess.kill('SIGINT');
     }

@@ -1,0 +1,22 @@
+task testKill {
+    doLast {
+        def netstat = Runtime.getRuntime().exec("cmd /c netstat -ano")
+        def reader = new BufferedReader(new InputStreamReader(netstat.getInputStream()))
+        def pids = [] as Set
+        def line
+        while ((line = reader.readLine()) != null) {
+            if ((line.contains(":8585") || line.contains(":3000")) && line.contains("LISTENING")) {
+                def parts = line.trim().split("\\s+")
+                println "Found line: ${line}"
+                println "Parts: ${parts.toList()}"
+                if (parts.length >= 5 && parts[4].isInteger() && parts[4] != "0") {
+                    println "PID to kill: ${parts[4]}"
+                    pids.add(parts[4])
+                }
+            }
+        }
+        reader.close()
+        netstat.waitFor()
+        println "PIDs to kill: ${pids}"
+    }
+}

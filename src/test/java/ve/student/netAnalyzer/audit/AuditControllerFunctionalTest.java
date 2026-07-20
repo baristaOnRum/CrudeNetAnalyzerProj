@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import ve.student.netAnalyzer.dto.AuditDto;
 import ve.student.netAnalyzer.dto.AuditFilter;
 import ve.student.netAnalyzer.model.Audit;
+import ve.student.netAnalyzer.model.ExportFormat;
 import ve.student.netAnalyzer.service.AuditService;
 
 import java.util.List;
@@ -62,5 +63,30 @@ class AuditControllerFunctionalTest {
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombreAuditoria").value("Login"));
+    }
+
+    @Test
+    void testGetAuditDetails_Success() throws Exception {
+        Audit audit = new Audit();
+        audit.setIdSesion("session-123");
+        audit.setNombreAuditoria("Evento Detalle");
+
+        when(auditService.getAuditDetails("session-123")).thenReturn(audit);
+
+        mockMvc.perform(get("/api/audits/session-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombreAuditoria").value("Evento Detalle"));
+    }
+
+    @Test
+    void testExportAudit_Success() throws Exception {
+        byte[] fakeCsv = "Audit ID: session-123, Name: Evento Detalle, User: null".getBytes();
+
+        when(auditService.exportAudit("session-123", ExportFormat.CSV)).thenReturn(fakeCsv);
+
+        mockMvc.perform(get("/api/audits/session-123/export?format=csv"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Disposition", "attachment; filename=audit_session-123.csv"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().bytes(fakeCsv));
     }
 }
