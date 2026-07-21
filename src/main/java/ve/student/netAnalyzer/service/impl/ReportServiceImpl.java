@@ -189,8 +189,13 @@ public class ReportServiceImpl implements ReportService {
         }
         
         double averageJitter = jitterCount > 0 ? totalJitter / jitterCount : 0.0;
+        double jitterP50 = calculatePercentile(jitters, 50.0);
         double jitter90 = calculatePercentile(jitters, 90.0);
+        double jitterP99 = calculatePercentile(jitters, 99.0);
+        
+        double sizeP50 = calculatePercentile(sizes, 50.0);
         double size90 = calculatePercentile(sizes, 90.0);
+        double sizeP99 = calculatePercentile(sizes, 99.0);
         
         double durationSeconds = 60.0;
         if (packets.get(0).getAnalisisRed() != null) {
@@ -215,10 +220,14 @@ public class ReportServiceImpl implements ReportService {
             }
         }
         
+        double latencyMin = calculatePercentile(allLatencies, 0.0);
+        double latencyP25 = calculatePercentile(allLatencies, 25.0);
         double latencyMean = allLatencies.stream().mapToInt(Integer::intValue).average().orElse(0.0);
         double latencyP50 = calculatePercentile(allLatencies, 50.0);
+        double latencyP75 = calculatePercentile(allLatencies, 75.0);
         double latencyP90 = calculatePercentile(allLatencies, 90.0);
         double latencyP99 = calculatePercentile(allLatencies, 99.0);
+        double latencyMax = calculatePercentile(allLatencies, 100.0);
         
         double criticalLatency = 150.0;
         double criticalJitter = 30.0;
@@ -252,11 +261,20 @@ public class ReportServiceImpl implements ReportService {
         Statistics stats = new Statistics(total, avgSize, topProtocol, protocolDistribution, topSourceIps, topDestIps,
                               averageJitter, downloadRate, packetRate, jitter90, size90);
         stats.setErrorDistribution(errorDistribution);
+        stats.setNetworkScore(networkScore);
+        
+        stats.setJitterP50(jitterP50);
+        stats.setJitterP99(jitterP99);
+        stats.setSizeP50(sizeP50);
+        stats.setSizeP99(sizeP99);
+        stats.setLatencyMin(latencyMin);
+        stats.setLatencyP25(latencyP25);
         stats.setLatencyMean(latencyMean);
         stats.setLatencyP50(latencyP50);
+        stats.setLatencyP75(latencyP75);
         stats.setLatencyP90(latencyP90);
         stats.setLatencyP99(latencyP99);
-        stats.setNetworkScore(networkScore);
+        stats.setLatencyMax(latencyMax);
         
         return stats;
     }

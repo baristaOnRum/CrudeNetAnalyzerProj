@@ -349,24 +349,54 @@ export const ReportsConsole: React.FC = () => {
 
                 {/* Metric Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
-                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Latencia (P90)</span>
-                        <span className="text-2xl font-black text-rose-600">{sessionStats.latencyP90?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
-                        <span className="text-[10px] text-slate-400 mt-1">Media: {sessionStats.latencyMean?.toFixed(2)} ms | P99: {sessionStats.latencyP99?.toFixed(2)} ms</span>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-center text-center">
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Distribución Latencia</span>
+                        <div className="flex-1 flex flex-col items-center justify-center w-full px-2 mt-2">
+                           {sessionStats.latencyMax !== undefined ? (() => {
+                               const maxVal = sessionStats.latencyMax * 1.05 || 100;
+                               const pMin = Math.max(0, (sessionStats.latencyMin / maxVal) * 100);
+                               const p25 = Math.max(0, (sessionStats.latencyP25 / maxVal) * 100);
+                               const p50 = Math.max(0, (sessionStats.latencyP50 / maxVal) * 100);
+                               const p75 = Math.max(0, (sessionStats.latencyP75 / maxVal) * 100);
+                               const pMax = Math.min(100, (sessionStats.latencyMax / maxVal) * 100);
+                               return (
+                                <div className="w-full h-10 relative flex items-center group cursor-help" title={`Mínimo: ${sessionStats.latencyMin?.toFixed(2)} ms\nP25: ${sessionStats.latencyP25?.toFixed(2)} ms\nMediana (P50): ${sessionStats.latencyP50?.toFixed(2)} ms\nP75: ${sessionStats.latencyP75?.toFixed(2)} ms\nP90: ${sessionStats.latencyP90?.toFixed(2)} ms\nP99: ${sessionStats.latencyP99?.toFixed(2)} ms\nMáximo: ${sessionStats.latencyMax?.toFixed(2)} ms`}>
+                                    {/* Eje base */}
+                                    <div className="absolute w-full h-px bg-slate-300 left-0"></div>
+                                    {/* Mechas (Min -> Max) */}
+                                    <div className="absolute h-[2px] bg-slate-500" style={{ left: `${pMin}%`, width: `${pMax - pMin}%` }}></div>
+                                    {/* Cuerpo (P25 -> P75) */}
+                                    <div className="absolute h-5 bg-rose-200 border border-rose-500 rounded-sm shadow-sm" style={{ left: `${p25}%`, width: `${Math.max(1, p75 - p25)}%`, top: '50%', transform: 'translateY(-50%)' }}></div>
+                                    {/* Mediana (P50) */}
+                                    <div className="absolute h-7 w-[3px] bg-rose-600 rounded-full shadow-sm" style={{ left: `${p50}%`, top: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                                </div>
+                               )
+                           })() : <span className="text-sm text-slate-400 mx-auto">Sin datos</span>}
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-2 font-medium">Caja: P25-P75 | Línea: Mediana</span>
                     </div>
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                    <div 
+                        className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-help transition-colors hover:bg-slate-100"
+                        title={`Jitter P50: ${sessionStats.jitterP50?.toFixed(2)} ms\nJitter P90: ${sessionStats.jitter90thPercentile?.toFixed(2)} ms\nJitter P99: ${sessionStats.jitterP99?.toFixed(2)} ms`}
+                    >
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Jitter Promedio</span>
                         <span className="text-2xl font-black text-indigo-600">{sessionStats.averageJitter?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
                         <span className="text-[10px] text-slate-400 mt-1">P90: {sessionStats.jitter90thPercentile?.toFixed(2)} ms</span>
                     </div>
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                    <div 
+                        className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-help transition-colors hover:bg-slate-100"
+                        title={`Tamaño P50: ${formatBytes(sessionStats.sizeP50)}\nTamaño P90: ${formatBytes(sessionStats.size90thPercentile)}\nTamaño P99: ${formatBytes(sessionStats.sizeP99)}`}
+                    >
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Descarga</span>
                         <span className="text-2xl font-black text-emerald-600">
                             {formatBytes(sessionStats.downloadRate).split(' ')[0]} <span className="text-sm font-normal text-slate-400">{formatBytes(sessionStats.downloadRate).split(' ')[1]}/s</span>
                         </span>
                         <span className="text-[10px] text-slate-400 mt-1">P90 Tamaño: {formatBytes(sessionStats.size90thPercentile)}</span>
                     </div>
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                    <div 
+                        className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-help transition-colors hover:bg-slate-100"
+                        title={`Total de paquetes analizados: ${sessionStats.totalPackets}\nProtocolo principal: ${sessionStats.primaryProtocol}`}
+                    >
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Paquetes</span>
                         <span className="text-2xl font-black text-amber-600">{sessionStats.packetRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">pkt/s</span></span>
                         <span className="text-[10px] text-slate-400 mt-1">Total: {sessionStats.totalPackets}</span>
