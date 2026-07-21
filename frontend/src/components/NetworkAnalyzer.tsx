@@ -62,11 +62,11 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
   // Monitoring states
   const [packetStats, setPacketStats] = useState<any>({ total: 0, protocols: {} });
-  const [trafficMetrics, setTrafficMetrics] = useState({ pps: 0, mbps: 0, loss: 0 });
+  const [trafficMetrics, setTrafficMetrics] = useState({ pps: 0, mbps: 0, loss: 0, jitter: 0 });
   // Promedio de métricas al finalizar una sesión de análisis activo
-  const [sessionAvgMetrics, setSessionAvgMetrics] = useState<{ pps: number; mbps: number; loss: number } | null>(null);
-  const metricsAccRef = useRef<{ ppsSum: number; mbpsSum: number; lossSum: number; ticks: number }>({
-    ppsSum: 0, mbpsSum: 0, lossSum: 0, ticks: 0
+  const [sessionAvgMetrics, setSessionAvgMetrics] = useState<{ pps: number; mbps: number; loss: number; jitter: number } | null>(null);
+  const metricsAccRef = useRef<{ ppsSum: number; mbpsSum: number; lossSum: number; jitterSum: number; ticks: number; jitterTicks: number }>({
+    ppsSum: 0, mbpsSum: 0, lossSum: 0, jitterSum: 0, ticks: 0, jitterTicks: 0
   });
   // Flag separado para el polling interno del análisis activo (speedtest)
   // isMonitoring queda reservado EXCLUSIVAMENTE para el monitoreo pasivo
@@ -79,6 +79,9 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
   const lastPacketIdRef = useRef<number>(0);
   const sessionProtocolsRef = useRef<Record<string, number>>({});
   const totalSessionPktsRef = useRef<number>(0);
+  const rollingBytesRef = useRef<{ bytes: number, time: number }[]>([]);
+  const rollingJitterRef = useRef<number[]>([]);
+  const lastRttPerFlowRef = useRef<Record<string, number>>({});
 
   // Ping states
   const [pingTarget, setPingTarget] = useState('8.8.8.8');
@@ -291,35 +294,87 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           });
         }
 
-        // Instantaneous metrics
         const intervalSec = Math.max(0.1, (fetchStartTime - lastFetchTimestampRef.current) / 1000);
         
         const deltaPkts = data.length;
-        const deltaBytes = data.reduce((acc, p) => {
+        const deltaBytes = data.reduce((acc: number, p: any) => {
           if (p.longitud && p.longitud > 0) return acc + p.longitud;
           if (p.contenidos) return acc + new Blob([p.contenidos]).size;
           return acc + 64; 
         }, 0);
 
         const pps = +(deltaPkts / intervalSec).toFixed(2);
-        const mbps = +((deltaBytes * 8) / intervalSec / 1_000_000).toFixed(4);
+        
+        // Tasa de datos suavizada (rolling window de 5 segundos/ticks)
+        rollingBytesRef.current.push({ bytes: deltaBytes, time: intervalSec });
+        if (rollingBytesRef.current.length > 5) {
+            rollingBytesRef.current.shift();
+        }
+        const totalRollingBytes = rollingBytesRef.current.reduce((acc, val) => acc + val.bytes, 0);
+        const totalRollingTime = rollingBytesRef.current.reduce((acc, val) => acc + val.time, 0);
+        const mbps = totalRollingTime > 0 ? +((totalRollingBytes * 8) / totalRollingTime / 1_000_000).toFixed(4) : 0;
 
         lastFetchTimestampRef.current = fetchStartTime;
 
         // Packet loss
-        const noResponse = data.filter(p => !p.respuesta || p.respuesta.trim() === '').length;
+        const noResponse = data.filter((p: any) => !p.respuesta || p.respuesta.trim() === '').length;
         const loss = data.length > 0
           ? +((noResponse / data.length) * 100).toFixed(2)
           : 0;
 
-        // Siempre actualizar métricas, incluso si no llegan paquetes nuevos en este tick
-        setTrafficMetrics({ pps, mbps, loss });
+        // Jitter (ventana de tiempo móvil de los últimos 5 ticks válidos) agrupado por flujo
+        let currentJitter = 0;
+        let hasValidJitter = false;
+        
+        // Protección de memoria contra ataques / sesiones masivas
+        if (Object.keys(lastRttPerFlowRef.current).length > 5000) {
+            lastRttPerFlowRef.current = {};
+        }
 
-        // Acumular para promedio al finalizar sesión
+        let sumDiffs = 0;
+        let diffCount = 0;
+
+        data.forEach((p: any) => {
+            if (p.tiempoRespuesta != null && p.tiempoRespuesta > 0) {
+                const key = `${p.fuente}-${p.destino}-${p.tipoPaquete}`;
+                const rtt = p.tiempoRespuesta;
+                if (lastRttPerFlowRef.current[key] !== undefined) {
+                    sumDiffs += Math.abs(rtt - lastRttPerFlowRef.current[key]);
+                    diffCount++;
+                }
+                lastRttPerFlowRef.current[key] = rtt;
+            }
+        });
+
+        if (diffCount > 0) {
+            currentJitter = +(sumDiffs / diffCount).toFixed(2);
+            hasValidJitter = true;
+        }
+
+        if (hasValidJitter) {
+            rollingJitterRef.current.push(currentJitter);
+            if (rollingJitterRef.current.length > 5) {
+                rollingJitterRef.current.shift();
+            }
+        }
+        
+        const avgJitter = rollingJitterRef.current.length > 0
+            ? +(rollingJitterRef.current.reduce((a, b) => a + b, 0) / rollingJitterRef.current.length).toFixed(2)
+            : (trafficMetrics.jitter || 0);
+
+        // Acumular para promedio general final de sesión
+        if (hasValidJitter) {
+            metricsAccRef.current.jitterSum += currentJitter;
+            metricsAccRef.current.jitterTicks += 1;
+        }
+
         metricsAccRef.current.ppsSum += pps;
         metricsAccRef.current.mbpsSum += mbps;
         metricsAccRef.current.lossSum += loss;
         metricsAccRef.current.ticks += 1;
+
+        // Siempre actualizar métricas, usando el avgJitter de la ventana móvil
+        setTrafficMetrics(prev => ({ pps, mbps, loss, jitter: avgJitter }));
       }
     } catch (e) {
       console.error('Failed to fetch packets for monitoring', e);
@@ -365,8 +420,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     
     setPacketStream([]);
     setPacketStats({ total: 0, protocols: {} });
-    setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
-    fetchPackets();
+    setTrafficMetrics({ pps: 0, mbps: 0, loss: 0, jitter: 0 });
+    metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, jitterSum: 0, ticks: 0, jitterTicks: 0 };
+    rollingBytesRef.current = [];
+    rollingJitterRef.current = [];
+    lastRttPerFlowRef.current = {};
+    setSessionAvgMetrics(null);
     monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
     
     // Iniciar diagnósticos base automáticamente en la UI
@@ -408,7 +467,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         
         setPacketStream([]);
         setPacketStats({ total: 0, protocols: {} });
-        setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
+        setTrafficMetrics({ pps: 0, mbps: 0, loss: 0, jitter: 0 });
+        metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, jitterSum: 0, ticks: 0, jitterTicks: 0 };
+        rollingBytesRef.current = [];
+        rollingJitterRef.current = [];
+        lastRttPerFlowRef.current = {};
+        setSessionAvgMetrics(null);
         
         fetchPackets();
         monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
@@ -481,7 +545,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           total: summary.totalPackets,
           protocols: summary.protocolDistribution || {}
         });
-        setTrafficMetrics({ pps, mbps, loss: 0 }); // Note: loss calculation for historical can be complex, defaulting to 0 or we could iterate packets if needed
+        setTrafficMetrics({ pps, mbps, loss: 0, jitter: 0 }); // Note: loss calculation for historical can be complex, defaulting to 0 or we could iterate packets if needed
       }
 
       setPacketStream(packets.map((p: any) => ({
@@ -740,14 +804,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       </div>
 
       {/* Global Traffic Metrics */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 select-none mt-6">
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-6 select-none mt-6">
         <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">speed</span>
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Paquetes / Segundo</span>
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Paquetes / Seg</span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-extrabold text-[#0F172A] font-mono">
               {(isMonitoring || isActiveCapturing)
                 ? trafficMetrics.pps
                 : sessionAvgMetrics
@@ -755,19 +819,19 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                 : activeAnalysisId ? trafficMetrics.pps : '--'}
             </span>
             {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
-              <span className="text-[10px] text-slate-400 mb-1 font-semibold tracking-wide uppercase">prom.</span>
+              <span className="text-[9px] text-slate-400 mb-0.5 font-semibold tracking-wide uppercase">prom.</span>
             )}
-            <span className="text-sm text-[#64748B] mb-1 font-bold">pps</span>
+            <span className="text-xs text-[#64748B] mb-0.5 font-bold">pps</span>
           </div>
         </div>
 
         <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">network_check</span>
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Tasa de Datos</span>
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Tasa de Datos</span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#0F172A] font-mono">
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-extrabold text-[#0F172A] font-mono">
               {(isMonitoring || isActiveCapturing)
                 ? trafficMetrics.mbps
                 : sessionAvgMetrics
@@ -775,19 +839,19 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                 : activeAnalysisId ? trafficMetrics.mbps : '--'}
             </span>
             {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
-              <span className="text-[10px] text-slate-400 mb-1 font-semibold tracking-wide uppercase">prom.</span>
+              <span className="text-[9px] text-slate-400 mb-0.5 font-semibold tracking-wide uppercase">prom.</span>
             )}
-            <span className="text-sm text-[#64748B] mb-1 font-bold">Mbps</span>
+            <span className="text-xs text-[#64748B] mb-0.5 font-bold">Mbps</span>
           </div>
         </div>
 
         <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">warning</span>
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Pérdida de Paquetes</span>
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pérdida</span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-extrabold text-[#F59E0B] font-mono">
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-extrabold text-[#F59E0B] font-mono">
               {(isMonitoring || isActiveCapturing)
                 ? trafficMetrics.loss
                 : sessionAvgMetrics
@@ -795,9 +859,29 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                 : activeAnalysisId ? trafficMetrics.loss : '--'}
             </span>
             {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
-              <span className="text-[10px] text-slate-400 mb-1 font-semibold tracking-wide uppercase">prom.</span>
+              <span className="text-[9px] text-slate-400 mb-0.5 font-semibold tracking-wide uppercase">prom.</span>
             )}
-            <span className="text-sm text-[#64748B] mb-1 font-bold">%</span>
+            <span className="text-xs text-[#64748B] mb-0.5 font-bold">%</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-[#64748B] text-lg">timeline</span>
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Jitter</span>
+          </div>
+          <div className="flex items-end gap-1">
+            <span className="text-2xl font-extrabold text-indigo-500 font-mono">
+              {(isMonitoring || isActiveCapturing)
+                ? trafficMetrics.jitter
+                : sessionAvgMetrics
+                ? sessionAvgMetrics.jitter
+                : activeAnalysisId ? trafficMetrics.jitter : '--'}
+            </span>
+            {!isMonitoring && !isActiveCapturing && sessionAvgMetrics && (
+              <span className="text-[9px] text-slate-400 mb-0.5 font-semibold tracking-wide uppercase">prom.</span>
+            )}
+            <span className="text-xs text-[#64748B] mb-0.5 font-bold">ms</span>
           </div>
         </div>
       </section>
@@ -1454,12 +1538,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                     lastPacketIdRef.current = 0;
                     sessionProtocolsRef.current = {};
                     totalSessionPktsRef.current = 0;
+                    rollingBytesRef.current = [];
+                    rollingJitterRef.current = [];
                     // Resetear acumulador de promedios
-                    metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, ticks: 0 };
+                    metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, jitterSum: 0, ticks: 0, jitterTicks: 0 };
                     setSessionAvgMetrics(null);
                     setPacketStream([]);
                     setPacketStats({ total: 0, protocols: {} });
-                    setTrafficMetrics({ pps: 0, mbps: 0, loss: 0 });
+                    setTrafficMetrics({ pps: 0, mbps: 0, loss: 0, jitter: 0 });
                     monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
 
                     try {
@@ -1486,6 +1572,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                             pps: +(acc.ppsSum / acc.ticks).toFixed(2),
                             mbps: +(acc.mbpsSum / acc.ticks).toFixed(4),
                             loss: +(acc.lossSum / acc.ticks).toFixed(2),
+                            jitter: +(acc.jitterSum / acc.ticks).toFixed(2)
                           });
                         }
                         // Cerrar modal automáticamente al terminar

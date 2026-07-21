@@ -156,8 +156,13 @@ public class PacketCaptureService {
                                     if (t != null && !t.isBlank()) {
                                         try {
                                             if (t.contains(",")) t = t.split(",")[0];
-                                            double timeSeconds = Double.parseDouble(t);
-                                            responseTimeMs = (int) Math.round(timeSeconds * 1000.0);
+                                            double timeVal = Double.parseDouble(t);
+                                            // icmp.resptime (index 7) is in milliseconds, others are in seconds
+                                            if (idx == 7) {
+                                                responseTimeMs = (int) Math.round(timeVal);
+                                            } else {
+                                                responseTimeMs = (int) Math.round(timeVal * 1000.0);
+                                            }
                                             break;
                                         } catch (NumberFormatException ignored) {}
                                     }
