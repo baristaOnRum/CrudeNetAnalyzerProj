@@ -12,4 +12,6 @@ public interface DiagnosticPacketRepository extends JpaRepository<DiagnosticPack
     // Método para obtener los paquetes de diagnóstico asociados a un análisis específico
     List<DiagnosticPacket> findByAnalisisRedId(Integer idAnalisis);
 
+    List<DiagnosticPacket> findByAnalisisRedFechaEjecucionBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+
 }

@@ -295,13 +295,43 @@ export const ReportsConsole: React.FC = () => {
           title={`Estadísticas de la Sesión #${selectedSession.id}`}
           subtitle="Métricas de rendimiento e indicadores de red"
           icon="query_stats"
-          size="2xl"
+          maxWidth="7xl"
         >
           {sessionStats ? (
             <div className="space-y-6">
                 
+                {/* Puntuación de Red */}
+                <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-inner">
+                    <span className="text-slate-500 text-sm font-bold uppercase mb-2">Puntuación de Red (QoS)</span>
+                    <div className="flex items-center gap-3">
+                        <span className={`text-5xl font-black ${
+                            sessionStats.networkScore >= 80 ? 'text-emerald-500' :
+                            sessionStats.networkScore >= 50 ? 'text-amber-500' :
+                            'text-red-500'
+                        }`}>
+                            {sessionStats.networkScore?.toFixed(0)} <span className="text-2xl font-normal text-slate-400">/ 100</span>
+                        </span>
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                            sessionStats.networkScore >= 80 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                            sessionStats.networkScore >= 50 ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                            'bg-red-100 text-red-700 border-red-300'
+                        }`}>
+                            {sessionStats.networkScore >= 80 ? 'Excelente' :
+                             sessionStats.networkScore >= 50 ? 'Regular' : 'Deficiente'}
+                        </div>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2 max-w-lg">
+                        Métrica dinámica calculada en base a la latencia (P99), el jitter y la eficiencia de la sesión. Una puntuación alta indica una red óptima para transmisiones en tiempo real.
+                    </p>
+                </div>
+
                 {/* Metric Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Latencia (P99)</span>
+                        <span className="text-2xl font-black text-rose-600">{sessionStats.latencyP99?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
+                        <span className="text-[10px] text-slate-400 mt-1">Media: {sessionStats.latencyMean?.toFixed(2)} ms | P50: {sessionStats.latencyP50?.toFixed(2)} ms</span>
+                    </div>
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Jitter Promedio</span>
                         <span className="text-2xl font-black text-indigo-600">{sessionStats.averageJitter?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>

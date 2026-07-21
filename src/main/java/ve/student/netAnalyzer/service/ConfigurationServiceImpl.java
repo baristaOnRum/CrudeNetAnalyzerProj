@@ -58,9 +58,21 @@ public class ConfigurationServiceImpl implements ConfigurationService {
     }
 
     @Override
+    public ConfigParameter getParameter(String key) {
+        return repository.findByNombreConfiguracion(key).orElseGet(() -> {
+            ConfigParameter newParam = new ConfigParameter();
+            newParam.setNombreConfiguracion(key);
+            if (key.equals("CRITICAL_LATENCY_MS")) newParam.setValorSeleccionado("150");
+            else if (key.equals("CRITICAL_JITTER_MS")) newParam.setValorSeleccionado("30");
+            else newParam.setValorSeleccionado("0");
+            return repository.save(newParam);
+        });
+    }
+
+    @Override
     public ConfigParameter modifyParameter(String key, String value) {
-        ConfigParameter param = repository.findByNombreConfiguracion(key)
-                .orElseThrow(() -> new RuntimeException("Parámetro no encontrado"));
+        ConfigParameter param = repository.findByNombreConfiguracion(key).orElse(new ConfigParameter());
+        param.setNombreConfiguracion(key);
         param.setValorSeleccionado(value);
         return repository.save(param);
     }

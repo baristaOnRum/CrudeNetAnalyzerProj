@@ -17,6 +17,13 @@ public class Statistics {
     private double jitter90thPercentile;
     private double size90thPercentile;
 
+    // Métricas de Puntuación de Red y Latencia Percentil
+    private double networkScore;
+    private double latencyMean;
+    private double latencyP50;
+    private double latencyP90;
+    private double latencyP99;
+
     public Statistics() {}
 
     public Statistics(long totalPackets, double peakThroughput, String primaryProtocol) {
@@ -88,4 +95,19 @@ public class Statistics {
 
     public double getSize90thPercentile() { return size90thPercentile; }
     public void setSize90thPercentile(double size90thPercentile) { this.size90thPercentile = size90thPercentile; }
+
+    public double getNetworkScore() { return networkScore; }
+    public void setNetworkScore(double networkScore) { this.networkScore = networkScore; }
+
+    public double getLatencyMean() { return latencyMean; }
+    public void setLatencyMean(double latencyMean) { this.latencyMean = latencyMean; }
+
+    public double getLatencyP50() { return latencyP50; }
+    public void setLatencyP50(double latencyP50) { this.latencyP50 = latencyP50; }
+
+    public double getLatencyP90() { return latencyP90; }
+    public void setLatencyP90(double latencyP90) { this.latencyP90 = latencyP90; }
+
+    public double getLatencyP99() { return latencyP99; }
+    public void setLatencyP99(double latencyP99) { this.latencyP99 = latencyP99; }
 }

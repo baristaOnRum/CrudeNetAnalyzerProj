@@ -23,25 +23,36 @@ import java.util.stream.Collectors;
 public class ReportServiceImpl implements ReportService {
 
     private final PacketRepository packetRepository;
+    private final ve.student.netAnalyzer.repository.DiagnosticPacketRepository diagnosticPacketRepository;
+    private final ve.student.netAnalyzer.service.ConfigurationService configurationService;
 
-    public ReportServiceImpl(PacketRepository packetRepository) {
+    public ReportServiceImpl(PacketRepository packetRepository,
+                             ve.student.netAnalyzer.repository.DiagnosticPacketRepository diagnosticPacketRepository,
+                             ve.student.netAnalyzer.service.ConfigurationService configurationService) {
         this.packetRepository = packetRepository;
+        this.diagnosticPacketRepository = diagnosticPacketRepository;
+        this.configurationService = configurationService;
     }
 
     @Override
     public Report generateReport(ReportCriteria criteria) {
         List<Packet> packets;
+        List<ve.student.netAnalyzer.model.DiagnosticPacket> diagPackets;
+        
         if (criteria.getSessionId() != null && !criteria.getSessionId().isEmpty()) {
             packets = packetRepository.findByAnalisisRedId(Integer.parseInt(criteria.getSessionId()));
+            diagPackets = diagnosticPacketRepository.findByAnalisisRedId(Integer.parseInt(criteria.getSessionId()));
         } else if (criteria.getDateRange() != null && criteria.getDateRange().getStartDate() != null) {
             LocalDateTime start = parseDate(criteria.getDateRange().getStartDate(), true);
             LocalDateTime end = parseDate(criteria.getDateRange().getEndDate(), false);
             packets = packetRepository.findByAnalisisRedFechaEjecucionBetween(start, end);
+            diagPackets = diagnosticPacketRepository.findByAnalisisRedFechaEjecucionBetween(start, end);
         } else {
             packets = packetRepository.findAll();
+            diagPackets = diagnosticPacketRepository.findAll();
         }
 
-        Statistics stats = calculateStatsFromPackets(packets);
+        Statistics stats = calculateStatsFromPackets(packets, diagPackets);
 
         String reportContent = "Reporte analítico generado para " + packets.size() + " paquetes interceptados.";
         if (criteria.getFilterOptions() != null && !criteria.getFilterOptions().isEmpty()) {
@@ -69,20 +80,25 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public Statistics generateStatistics(ReportCriteria criteria) {
         List<Packet> packets;
+        List<ve.student.netAnalyzer.model.DiagnosticPacket> diagPackets;
+        
         if (criteria != null && criteria.getSessionId() != null && !criteria.getSessionId().isEmpty()) {
             packets = packetRepository.findByAnalisisRedId(Integer.parseInt(criteria.getSessionId()));
+            diagPackets = diagnosticPacketRepository.findByAnalisisRedId(Integer.parseInt(criteria.getSessionId()));
         } else if (criteria != null && criteria.getDateRange() != null && criteria.getDateRange().getStartDate() != null) {
             LocalDateTime start = parseDate(criteria.getDateRange().getStartDate(), true);
             LocalDateTime end = parseDate(criteria.getDateRange().getEndDate(), false);
             packets = packetRepository.findByAnalisisRedFechaEjecucionBetween(start, end);
+            diagPackets = diagnosticPacketRepository.findByAnalisisRedFechaEjecucionBetween(start, end);
         } else {
             packets = packetRepository.findAll();
+            diagPackets = diagnosticPacketRepository.findAll();
         }
         
-        return calculateStatsFromPackets(packets);
+        return calculateStatsFromPackets(packets, diagPackets);
     }
     
-    private Statistics calculateStatsFromPackets(List<Packet> packets) {
+    private Statistics calculateStatsFromPackets(List<Packet> packets, List<ve.student.netAnalyzer.model.DiagnosticPacket> diagPackets) {
         long total = packets.size();
         if (total == 0) return new Statistics(0L, 0.0, "N/A");
         
@@ -163,8 +179,58 @@ public class ReportServiceImpl implements ReportService {
         double downloadRate = totalBytes / durationSeconds;
         double packetRate = total / durationSeconds;
                 
-        return new Statistics(total, avgSize, topProtocol, protocolDistribution, topSourceIps, topDestIps,
+        List<Integer> allLatencies = new ArrayList<>();
+        for (Packet p : packets) {
+            if (p.getTiempoRespuesta() != null && p.getTiempoRespuesta() > 0) {
+                allLatencies.add(p.getTiempoRespuesta());
+            }
+        }
+        if (diagPackets != null) {
+            for (ve.student.netAnalyzer.model.DiagnosticPacket dp : diagPackets) {
+                if (dp.getTiempoRespuesta() != null && dp.getTiempoRespuesta() > 0) {
+                    allLatencies.add(dp.getTiempoRespuesta());
+                }
+            }
+        }
+        
+        double latencyMean = allLatencies.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        double latencyP50 = calculatePercentile(allLatencies, 50.0);
+        double latencyP90 = calculatePercentile(allLatencies, 90.0);
+        double latencyP99 = calculatePercentile(allLatencies, 99.0);
+        
+        double criticalLatency = 150.0;
+        double criticalJitter = 30.0;
+        try {
+            String latStr = configurationService.getParameter("CRITICAL_LATENCY_MS").getValorSeleccionado();
+            if (latStr != null && !latStr.isEmpty()) criticalLatency = Double.parseDouble(latStr);
+            
+            String jitStr = configurationService.getParameter("CRITICAL_JITTER_MS").getValorSeleccionado();
+            if (jitStr != null && !jitStr.isEmpty()) criticalJitter = Double.parseDouble(jitStr);
+        } catch(Exception e) {}
+
+        double networkScore = 100.0;
+        if (latencyP99 > criticalLatency) {
+            double penalty = ((latencyP99 - criticalLatency) / criticalLatency) * 50.0;
+            networkScore -= Math.min(penalty, 50.0);
+        }
+        if (averageJitter > criticalJitter) {
+            double penalty = ((averageJitter - criticalJitter) / criticalJitter) * 30.0;
+            networkScore -= Math.min(penalty, 30.0);
+        }
+        if (downloadRate < 1000 && total > 100) {
+            networkScore -= 10.0;
+        }
+        if (networkScore < 0) networkScore = 0;
+
+        Statistics stats = new Statistics(total, avgSize, topProtocol, protocolDistribution, topSourceIps, topDestIps,
                               averageJitter, downloadRate, packetRate, jitter90, size90);
+        stats.setLatencyMean(latencyMean);
+        stats.setLatencyP50(latencyP50);
+        stats.setLatencyP90(latencyP90);
+        stats.setLatencyP99(latencyP99);
+        stats.setNetworkScore(networkScore);
+        
+        return stats;
     }
     
     private double calculatePercentile(List<Integer> values, double percentile) {

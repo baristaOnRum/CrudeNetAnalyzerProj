@@ -20,6 +20,11 @@ public class ConfigurationController {
     @Autowired
     private AuditService auditService;
 
+    @GetMapping("/{key}")
+    public ResponseEntity<ConfigParameter> getParameter(@PathVariable String key) {
+        return ResponseEntity.ok(configurationService.getParameter(key));
+    }
+
     @PutMapping("/{key}")
     public ResponseEntity<ConfigParameter> modifyParameter(@PathVariable String key, @RequestBody String value) {
         try {

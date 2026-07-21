@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { DatabaseSettings } from './DatabaseSettings';
+import { QosSettings } from './QosSettings';
 
 interface SettingsPanelProps {
   currentUserRole?: string;
@@ -20,6 +21,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   return (
     <div className="space-y-6 font-sans select-none max-w-4xl mx-auto mt-4">
       <DatabaseSettings isAdmin={isAdmin} isLoginContext={false} onConfigChange={onConfigChange} />
+      <QosSettings isAdmin={isAdmin} />
     </div>
   );
 };
