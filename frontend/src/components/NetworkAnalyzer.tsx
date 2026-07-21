@@ -406,7 +406,11 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       if (response.ok) {
         const data = await response.json();
         handleSetActiveAnalysisId(data.id);
-        await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
+        await fetch('/api/analysis/interface/analyze', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interfaceId: interfaceData.nombreInterfaz })
+        });
       }
     } catch (e) {
       console.error('Failed to create analysis session', e);
@@ -455,7 +459,11 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         const data = await response.json();
         handleSetActiveAnalysisId(data.id);
         Swal.fire('Éxito', `Sesión de análisis activo ${data.id} iniciada`, 'success');
-        await fetch(`/api/analysis/interface/${interfaceData.nombreInterfaz}/analyze`, { method: 'POST' });
+        await fetch('/api/analysis/interface/analyze', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interfaceId: interfaceData.nombreInterfaz })
+        });
         
         if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
         setIsMonitoring(true);

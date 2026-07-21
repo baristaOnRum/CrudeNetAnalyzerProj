@@ -66,8 +66,9 @@ public class AnalysisController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/interface/{interfaceId}/analyze")
-    public ResponseEntity<AnalysisResult> analyzeInterface(@PathVariable String interfaceId) {
+    @PostMapping("/interface/analyze")
+    public ResponseEntity<AnalysisResult> analyzeInterface(@RequestBody java.util.Map<String, String> payload) {
+        String interfaceId = payload.get("interfaceId");
         String ip = ipResolutionService.getPublicIp();
         AuditDto audit = new AuditDto();
         audit.setNombreAuditoria("Ejecución de Análisis Pasivo");
