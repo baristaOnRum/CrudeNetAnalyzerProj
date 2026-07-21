@@ -22,6 +22,7 @@ public class AnalisisRed {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_ejecutado", referencedColumnName = "id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private AppUser usuarioEjecutado;
 
     public AnalisisRed() {}
