@@ -47,3 +47,4 @@ frontend/backend.jar
 frontend/release/
 reports/
 *.db-journal
+netanalyzer.db*
