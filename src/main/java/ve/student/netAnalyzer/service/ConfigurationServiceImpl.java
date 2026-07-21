@@ -139,7 +139,10 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             yaml.append("    hibernate:\n");
             yaml.append("      ddl-auto: update\n");
             yaml.append("    show-sql: true\n");
-            yaml.append("    database-platform: ").append(dialect).append("\n");
+            yaml.append("    database-platform: ").append(dialect).append("\n\n");
+            yaml.append("capture:\n");
+            yaml.append("  tshark:\n");
+            yaml.append("    path: \"./tshark-portable/App/Wireshark/tshark.exe\"\n");
 
             Files.writeString(Paths.get(yamlPath), yaml.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             System.out.println("Configuración de base de datos actualizada en application.yaml. Por favor, reinicie la aplicación.");

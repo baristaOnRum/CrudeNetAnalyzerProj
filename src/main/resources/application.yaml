@@ -12,4 +12,4 @@ spring:
 
 capture:
   tshark:
-    path: "C:\\Program Files\\Wireshark\\tshark.exe"
+    path: "./tshark-portable/App/Wireshark/tshark.exe"
