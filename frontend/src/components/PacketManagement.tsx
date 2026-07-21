@@ -33,24 +33,73 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [selectedPacket, setSelectedPacket] = useState<NetworkPacket | null>(null);
 
-  // Filters
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [filterExactDate, setFilterExactDate] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterContent, setFilterContent] = useState('');
+  const [filterMinLength, setFilterMinLength] = useState<number | ''>('');
+  const [filterMaxLength, setFilterMaxLength] = useState<number | ''>('');
   const [showFilters, setShowFilters] = useState(false);
+
+  const [sortField, setSortField] = useState('timestamp');
+  const [sortAsc, setSortAsc] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchPackets = async (page = 0) => {
+  const [metadata, setMetadata] = useState<{ minLength: number; maxLength: number; protocols: string[] }>({
+      minLength: 0,
+      maxLength: 65535,
+      protocols: PROTOCOLS
+  });
+  const [sessionDate, setSessionDate] = useState<string>('');
+
+  useEffect(() => {
+      const fetchMetadata = async () => {
+          try {
+              const res = await fetch('/api/packets/metadata');
+              if (res.ok) {
+                  setMetadata(await res.json());
+              }
+          } catch (e) {
+              console.error(e);
+          }
+      };
+      fetchMetadata();
+  }, []);
+
+  useEffect(() => {
+    if (activeAnalysisId) {
+      fetch(`/api/analysis/${activeAnalysisId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.fechaEjecucion) {
+                setSessionDate(data.fechaEjecucion.substring(0, 10));
+            }
+        }).catch(e => console.error(e));
+    }
+  }, [activeAnalysisId]);
+
+  const fetchPackets = async (page = currentPage) => {
     if (!activeAnalysisId) {
       setPackets([]);
       return;
     }
     try {
-      const res = await fetch(`/api/packets?idAnalisis=${activeAnalysisId}&page=${page}&size=100`);
+      const criteria = {
+          analysisId: activeAnalysisId,
+          term: filterContent,
+          startDate: filterStartDate && sessionDate ? `${sessionDate}T${filterStartDate}:00` : null,
+          endDate: filterEndDate && sessionDate ? `${sessionDate}T${filterEndDate}:59` : null,
+          type: filterType === 'Todos' ? null : (filterType || null),
+          minLength: filterMinLength || null,
+          maxLength: filterMaxLength || null
+      };
+      const res = await fetch(`/api/packets/search?page=${page}&size=100&sort=${sortField},${sortAsc ? 'asc' : 'desc'}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(criteria)
+      });
       if (res.ok) {
         const data = await res.json();
         const rawList = data.content ?? data;
@@ -61,12 +110,12 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
         const mapped = rawList.map((p: any) => ({
           id: p.id ? `PKT-${p.id}` : `PKT-${Math.floor(Math.random() * 90000)}`,
           realId: p.id,
-          timestamp: new Date().toISOString().substring(11, 23),
-          sourceIp: p.fuente,
-          destIp: p.destino,
-          protocol: p.tipoPaquete,
-          content: p.contenidos || '',
-          length: p.longitud ?? (p.contenidos ? p.contenidos.length : 128),
+          timestamp: p.fechaHora || p.timestamp || new Date().toISOString(),
+          sourceIp: p.fuente || p.sourceIp,
+          destIp: p.destino || p.destIp,
+          protocol: p.tipoPaquete || p.protocol,
+          content: p.contenidos || p.content || '',
+          length: p.longitud ?? (p.contenidos ? p.contenidos.length : p.length ?? 0),
           status: 'allowed',
           idAnalisis: p.idAnalisis
         }));
@@ -79,17 +128,14 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
 
   useEffect(() => {
     fetchPackets(0);
-  }, []);
+  }, [activeAnalysisId, sortField, sortAsc]);
 
   useEffect(() => {
-    if (!isPlaying) return;
     const timer = setInterval(() => {
       fetchPackets(currentPage);
     }, 1800);
     return () => clearInterval(timer);
-  }, [isPlaying, activeAnalysisId, currentPage]);
-
-  const handleTogglePlay = () => setIsPlaying(!isPlaying);
+  }, [activeAnalysisId, currentPage, filterContent, filterStartDate, filterEndDate, filterType, filterMinLength, filterMaxLength, sortField, sortAsc, sessionDate]);
 
   const handleViewDetail = async (pkt: NetworkPacket) => {
     if (pkt.realId) {
@@ -108,95 +154,44 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
         console.error("Failed to load packet details", e);
       }
     }
-    // Fallback to list data if fetch fails or no realId
     setSelectedPacket(pkt);
   };
 
-  const filteredPackets = packets.filter((p) => {
-    // 1. Session filter
-    if (activeAnalysisId && p.idAnalisis !== activeAnalysisId) return false;
-
-    // 2. Exact date
-    if (filterExactDate) {
-      // Very simple matching since timestamp is "HH:mm:ss.mmm" in mapped data currently
-      if (!p.timestamp.includes(filterExactDate)) return false;
-    } else {
-      // 3. Date range
-      if (filterStartDate && p.timestamp < filterStartDate) return false;
-      if (filterEndDate && p.timestamp > filterEndDate) return false;
-    }
-
-    // 4. Packet type
-    if (filterType && p.protocol.toLowerCase() !== filterType.toLowerCase()) return false;
-
-    // 5. Content match
-    if (filterContent && !p.content.toLowerCase().includes(filterContent.toLowerCase())) return false;
-
-    return true;
-  });
-
-  const handleExport = async (type: 'CSV' | 'JSON' | 'PDF') => {
+  const handleExport = async (type: 'CSV' | 'PDF') => {
     setExportingState('exporting');
     setExportMessage(`Preparando salida ${type}...`);
     
     if (activeAnalysisId) {
       try {
-        if (type === 'PDF') {
-          const res = await fetch('/api/reports/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: activeAnalysisId.toString(), reportType: "PDF_PACKETS" })
-          });
-          if (res.ok) {
-            const report = await res.json();
-            if (report.downloadUrl) {
-              window.open(report.downloadUrl, '_blank');
-            }
-          }
+        const criteria = {
+            analysisId: activeAnalysisId,
+            term: filterContent,
+            startDate: filterStartDate && sessionDate ? `${sessionDate}T${filterStartDate}:00` : null,
+            endDate: filterEndDate && sessionDate ? `${sessionDate}T${filterEndDate}:59` : null,
+            type: filterType === 'Todos' ? null : (filterType || null),
+            minLength: filterMinLength || null,
+            maxLength: filterMaxLength || null
+        };
+        const res = await fetch(`/api/packets/export?format=${type}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(criteria)
+        });
+        if (res.ok) {
+           const blob = await res.blob();
+           const url = window.URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = `session_${activeAnalysisId}_packets_filtered.${type.toLowerCase()}`;
+           document.body.appendChild(a);
+           a.click();
+           a.remove();
+           window.URL.revokeObjectURL(url);
         } else {
-          const response = await fetch(`/api/packets/export/${activeAnalysisId}?format=${type}`);
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `session_${activeAnalysisId}_packets.${type.toLowerCase()}`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          window.URL.revokeObjectURL(url);
-        }
+           setExportMessage('Error al exportar los datos.');
         }
       } catch (e) {
         console.error('Failed to export from backend', e);
-      }
-    } else {
-      if (type === 'PDF') {
-        const res = await fetch('/api/reports/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reportType: "PDF_PACKETS" })
-        });
-        if (res.ok) {
-          const report = await res.json();
-          if (report.downloadUrl) window.open(report.downloadUrl, '_blank');
-        }
-      } else {
-        let exportContent = '';
-        if (type === 'CSV') {
-        exportContent = 'id,timestamp,sourceIp,destIp,protocol,length,content\n';
-        exportContent += packets.map(p => `${p.id},${p.timestamp},${p.sourceIp},${p.destIp},${p.protocol},${p.length},${p.content}`).join('\n');
-      } else {
-        exportContent = JSON.stringify(packets, null, 2);
-      }
-      
-      const dataUri = `data:text/${type === 'CSV' ? 'csv' : 'json'};charset=utf-8,` + encodeURIComponent(exportContent);
-      const a = document.createElement('a');
-      a.href = dataUri;
-      a.download = `packets_export.${type.toLowerCase()}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
       }
     }
     
@@ -228,30 +223,23 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
             </button>
             
             {showFilters && (
-              <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg shadow-sm w-full">
                 <input 
-                  type="date" 
-                  title="Fecha Exacta" 
-                  value={filterExactDate} 
-                  onChange={e => setFilterExactDate(e.target.value)} 
-                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
-                />
-                <span className="text-xs text-slate-400">ó rango:</span>
-                <input 
-                  type="date" 
-                  title="Fecha Inicio" 
+                  type="time" 
+                  step="1"
+                  title="Hora Inicio" 
                   value={filterStartDate} 
                   onChange={e => setFilterStartDate(e.target.value)} 
-                  disabled={!!filterExactDate}
-                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs disabled:opacity-50"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
                 />
+                <span className="text-xs text-slate-400">a</span>
                 <input 
-                  type="date" 
-                  title="Fecha Fin" 
+                  type="time" 
+                  step="1"
+                  title="Hora Fin" 
                   value={filterEndDate} 
                   onChange={e => setFilterEndDate(e.target.value)}
-                  disabled={!!filterExactDate}
-                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs disabled:opacity-50"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
                 />
                 <select
                   title="Tipo de Paquete"
@@ -259,33 +247,48 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
                   onChange={e => setFilterType(e.target.value)}
                   className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs w-28 bg-white"
                 >
-                  <option value="">Cualquier Tipo</option>
-                  {PROTOCOLS.map(proto => (
+                  <option value="">Todos</option>
+                  {metadata.protocols.map(proto => (
                     <option key={proto} value={proto}>{proto}</option>
                   ))}
                 </select>
+                <div className="flex items-center gap-1 border border-slate-200 px-2 py-1.5 rounded-lg bg-white">
+                   <span className="text-xs text-slate-400 font-bold">Tamaño (B):</span>
+                   <input
+                      type="number"
+                      placeholder={`Mín (${metadata.minLength})`}
+                      value={filterMinLength}
+                      onChange={e => setFilterMinLength(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-16 px-1 text-xs outline-none"
+                      min={metadata.minLength}
+                      max={metadata.maxLength}
+                   />
+                   <span className="text-xs text-slate-400">-</span>
+                   <input
+                      type="number"
+                      placeholder={`Máx (${metadata.maxLength})`}
+                      value={filterMaxLength}
+                      onChange={e => setFilterMaxLength(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-16 px-1 text-xs outline-none"
+                      min={metadata.minLength}
+                      max={metadata.maxLength}
+                   />
+                </div>
                 <input 
                   type="text" 
                   placeholder="Buscar contenido..." 
                   value={filterContent} 
                   onChange={e => setFilterContent(e.target.value)} 
-                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs flex-1 min-w-[150px]"
                 />
               </div>
             )}
           </div>
           <div className="flex items-center gap-4 mt-3 md:mt-0">
             <div className="flex items-center gap-2">
-              <button onClick={() => handleExport('PDF')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">PDF</button>
-              <button onClick={() => handleExport('CSV')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">CSV</button>
-              <button onClick={() => handleExport('JSON')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9]">JSON</button>
+              <button onClick={() => handleExport('PDF')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9] cursor-pointer">PDF</button>
+              <button onClick={() => handleExport('CSV')} className="px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-xs font-semibold hover:bg-[#F1F5F9] cursor-pointer">CSV</button>
             </div>
-            <button
-              onClick={handleTogglePlay}
-              className={`px-4 py-1.5 font-sans font-semibold rounded-lg text-xs tracking-wide transition-all ${isPlaying ? 'bg-primary text-white' : 'bg-green-600 text-white animate-pulse'}`}
-            >
-              {isPlaying ? 'Pausar DB Stream' : 'Reanudar DB Stream'}
-            </button>
           </div>
         </div>
 
@@ -293,11 +296,21 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
           <table className="w-full text-left border-collapse font-mono">
             <thead>
               <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] font-sans font-bold text-[#64748B] uppercase">
-                <th className="p-4 pl-6">Marca de Tiempo</th>
-                <th className="p-4">IP de Origen</th>
-                <th className="p-4">IP de Destino</th>
-                <th className="p-4">Protocolo</th>
-                <th className="p-4 text-right">Longitud (B)</th>
+                <th className="p-4 pl-6 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => { setSortField('timestamp'); setSortAsc(!sortAsc); }}>
+                  Marca de Tiempo {sortField === 'timestamp' && (sortAsc ? '↑' : '↓')}
+                </th>
+                <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => { setSortField('sourceIp'); setSortAsc(!sortAsc); }}>
+                  IP de Origen {sortField === 'sourceIp' && (sortAsc ? '↑' : '↓')}
+                </th>
+                <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => { setSortField('destIp'); setSortAsc(!sortAsc); }}>
+                  IP de Destino {sortField === 'destIp' && (sortAsc ? '↑' : '↓')}
+                </th>
+                <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => { setSortField('protocol'); setSortAsc(!sortAsc); }}>
+                  Protocolo {sortField === 'protocol' && (sortAsc ? '↑' : '↓')}
+                </th>
+                <th className="p-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => { setSortField('length'); setSortAsc(!sortAsc); }}>
+                  Longitud (B) {sortField === 'length' && (sortAsc ? '↑' : '↓')}
+                </th>
                 <th className="p-4 text-right pr-6">Acción</th>
               </tr>
             </thead>
@@ -309,12 +322,12 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
                     Por favor, seleccione o inicie una sesión en el panel de Análisis para ver sus paquetes.
                   </td>
                 </tr>
-              ) : filteredPackets.length === 0 ? (
+              ) : packets.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-500 italic">No hay paquetes que coincidan con los filtros.</td>
                 </tr>
               ) : (
-                filteredPackets.map((pkt) => (
+                packets.map((pkt) => (
                   <tr key={pkt.id} className="hover:bg-[#F8FAFC] animate-[fadeIn_0.1s_ease-out]">
                     <td className="p-4 pl-6 text-[#64748B]">{pkt.timestamp}</td>
                     <td className="p-4 font-semibold text-[#0F172A]">{pkt.sourceIp}</td>

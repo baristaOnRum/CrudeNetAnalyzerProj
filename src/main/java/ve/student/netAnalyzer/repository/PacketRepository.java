@@ -1,13 +1,14 @@
 package ve.student.netAnalyzer.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 import ve.student.netAnalyzer.model.Packet;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface PacketRepository extends JpaRepository<Packet, Long> {
+public interface PacketRepository extends JpaRepository<Packet, Long>, JpaSpecificationExecutor<Packet> {
     List<Packet> findByAnalisisRedFechaEjecucionBetween(LocalDateTime start, LocalDateTime end);
     List<Packet> findByAnalisisRedId(Integer id);
     List<Packet> findByAnalisisRedIdAndIdGreaterThan(Integer id, Long sinceId);

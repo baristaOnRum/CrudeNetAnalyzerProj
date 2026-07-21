@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import ve.student.netAnalyzer.repository.AnalisisRedRepository;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/analysis")
@@ -35,6 +37,9 @@ public class AnalysisController {
 
     @Autowired
     private IpResolutionService ipResolutionService;
+
+    @Autowired
+    private AnalisisRedRepository analisisRedRepository;
 
     @PostMapping("/interface")
     public ResponseEntity<String> registerInterface(@RequestBody InterfaceDto dto) {
@@ -93,6 +98,14 @@ public class AnalysisController {
             return ResponseEntity.ok(analysisService.getAnalyses(page, size));
         }
         return ResponseEntity.ok(analysisService.listAnalyses());
+    }
+
+    @PostMapping("/search")
+    public ResponseEntity<org.springframework.data.domain.Page<AnalisisRed>> searchAnalyses(
+            @RequestBody ve.student.netAnalyzer.dto.AnalysisSearchCriteria criteria,
+            org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<AnalisisRed> spec = ve.student.netAnalyzer.specification.AnalysisSpecification.withCriteria(criteria);
+        return ResponseEntity.ok(analisisRedRepository.findAll(spec, pageable));
     }
 
     @PostMapping

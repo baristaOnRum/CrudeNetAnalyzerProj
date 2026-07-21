@@ -27,19 +27,34 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
   const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState<'ADMIN' | 'ANALYST' | 'VIEWER'>('ANALYST');
 
-  const fetchUsers = async () => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [fuzzySearch, setFuzzySearch] = useState('');
+
+  const fetchUsers = async (page = 0, search = fuzzySearch) => {
     try {
-      const res = await fetch('/api/users');
-      const data = await res.json();
-      const mapped: Operator[] = data.map((u: any) => ({
-        id: u.id,
-        avatarInitials: u.nombre ? u.nombre.substring(0, 2).toUpperCase() : 'US',
-        name: u.nombre,
-        role: u.rol || 'ANALYST',
-        status: 'Active',
-        lastLogin: new Date().toLocaleDateString()
-      }));
-      setOperators(mapped);
+      const res = await fetch(`/api/users/search?page=${page}&size=10`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ term: search })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const rawList = data.content ?? data;
+        if (data.totalPages !== undefined) {
+          setTotalPages(data.totalPages);
+          setCurrentPage(data.number);
+        }
+        const mapped: Operator[] = rawList.map((u: any) => ({
+          id: u.id,
+          avatarInitials: u.nombre ? u.nombre.substring(0, 2).toUpperCase() : 'US',
+          name: u.nombre,
+          role: u.rol || 'ANALYST',
+          status: 'Active',
+          lastLogin: new Date().toLocaleDateString()
+        }));
+        setOperators(mapped);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -159,8 +174,28 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
       </div>
 
       <div className="bg-white border border-[#cbd5e1] rounded-2xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-100 bg-[#f8f9ff] flex justify-between items-center select-none">
+        <div className="px-6 py-4 border-b border-slate-100 bg-[#f8f9ff] flex flex-col md:flex-row justify-between items-center gap-4 select-none">
           <h2 className="font-sans font-bold text-[#191c1e] text-base">Directorio de Operadores</h2>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+              <input 
+                type="text" 
+                placeholder="Buscar (fuzzy)..." 
+                value={fuzzySearch}
+                onChange={(e) => setFuzzySearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchUsers(0, fuzzySearch)}
+                className="pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64"
+                title="Búsqueda difusa por nombre o rol"
+              />
+            </div>
+            <button 
+              onClick={() => fetchUsers(0, fuzzySearch)}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-xs font-bold transition-colors cursor-pointer"
+            >
+              Buscar
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -229,6 +264,28 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
             </tbody>
           </table>
         </div>
+        
+        {totalPages > 1 && (
+          <div className="px-6 py-3 border-t border-slate-100 bg-[#f8f9ff] flex justify-between items-center select-none">
+            <span className="text-xs font-bold text-slate-500">Página {currentPage + 1} de {totalPages}</span>
+            <div className="flex gap-2">
+              <button 
+                disabled={currentPage === 0} 
+                onClick={() => fetchUsers(currentPage - 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                Anterior
+              </button>
+              <button 
+                disabled={currentPage >= totalPages - 1} 
+                onClick={() => fetchUsers(currentPage + 1)}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* User Detail Modal */}

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import html2pdf from 'html2pdf.js';
 import { Modal } from './common/Modal';
 import { 
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -36,14 +37,52 @@ export const ReportsConsole: React.FC = () => {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterExactDate, setFilterExactDate] = useState('');
+  const [fuzzySearch, setFuzzySearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [qosThresholds, setQosThresholds] = useState({
+      excellent: 90,
+      good: 70,
+      regular: 50,
+      deficient: 30
+  });
+
+  const fetchQosThresholds = async () => {
+      try {
+          const getParam = async (key: string, defaultVal: number) => {
+              const res = await fetch(`/api/configurations/${key}`);
+              if (res.ok) {
+                  const data = await res.json();
+                  return parseInt(data.valorSeleccionado) || defaultVal;
+              }
+              return defaultVal;
+          };
+          setQosThresholds({
+              excellent: await getParam('SCORE_EXCELLENT', 90),
+              good: await getParam('SCORE_GOOD', 70),
+              regular: await getParam('SCORE_REGULAR', 50),
+              deficient: await getParam('SCORE_DEFICIENT', 30)
+          });
+      } catch (e) {
+          console.error("No se pudo cargar la configuración QoS", e);
+      }
+  };
+
   const fetchSessions = async (page = 0) => {
     try {
-      const res = await fetch(`/api/analysis?page=${page}&size=20`);
+      const payload = {
+         term: fuzzySearch || null,
+         startDate: filterStartDate ? `${filterStartDate}T00:00:00` : (filterExactDate ? `${filterExactDate}T00:00:00` : null),
+         endDate: filterEndDate ? `${filterEndDate}T23:59:59` : (filterExactDate ? `${filterExactDate}T23:59:59` : null)
+      };
+      const res = await fetch(`/api/analysis/search?page=${page}&size=20&sort=id,desc`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(payload)
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.content) {
@@ -61,6 +100,7 @@ export const ReportsConsole: React.FC = () => {
 
   useEffect(() => {
     fetchSessions(0);
+    fetchQosThresholds();
   }, []);
 
   const handleViewStats = async (session: AnalisisRed) => {
@@ -103,54 +143,66 @@ export const ReportsConsole: React.FC = () => {
     }
   };
 
-  const handleGenerateReport = async (id: number) => {
-    const session = sessions.find(s => s.id === id);
-    if (!session) return;
-    
-    let reqBody: any = { sessionId: id.toString(), reportType: "PDF_STATS" };
-
+  const handleGenerateReport = async (id: number, type: string = "PDF_STATS") => {
     try {
       Swal.fire({
         title: 'Generando Reporte...',
-        text: 'Compilando informe estadístico en PDF.',
+        allowOutsideClick: false,
         didOpen: () => {
           Swal.showLoading();
         }
       });
       
+      if (type === 'PDF_STATS') {
+          const element = document.getElementById('statistics-modal-content');
+          if (!element) {
+              Swal.fire('Error', 'Debe abrir el modal de estadísticas para capturar el reporte en PDF.', 'error');
+              return;
+          }
+          
+          const opt = {
+              margin:       10,
+              filename:     `Reporte_Estadistico_${id}_${Date.now()}.pdf`,
+              image:        { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { scale: 2, useCORS: true },
+              jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          html2pdf().set(opt).from(element).save().then(() => {
+              // Llamada para registrar la auditoría
+              fetch('/api/reports/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: id.toString(), reportType: "PDF_STATS" })
+              });
+              Swal.fire('Éxito', 'El PDF ha sido generado y descargado correctamente.', 'success');
+          });
+          return;
+      }
+
       const res = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reqBody)
+        body: JSON.stringify({ sessionId: id.toString(), reportType: type })
       });
       
       if (res.ok) {
-          const report = await res.json();
-          if (report.downloadUrl) {
-              Swal.fire({ text: `¡Reporte generado con éxito!`, icon: 'success', confirmButtonColor: '#4F46E5' });
-              window.open(report.downloadUrl, '_blank');
-          } else {
-              Swal.fire({ text: `Se ha guardado el informe localmente.`, icon: 'success', confirmButtonColor: '#4F46E5' });
-          }
+        const report = await res.json();
+        if (report.downloadUrl) {
+            Swal.fire({ text: `¡Reporte generado con éxito!`, icon: 'success', confirmButtonColor: '#4F46E5' });
+            window.open(report.downloadUrl, '_blank');
+        } else {
+            Swal.fire({ text: `Se ha guardado el informe localmente.`, icon: 'success', confirmButtonColor: '#4F46E5' });
+        }
       } else {
-          Swal.fire({ title: 'Error', text: 'No se pudo generar el reporte.', icon: 'error' });
+        Swal.fire('Error', 'Fallo al generar el reporte.', 'error');
       }
-    } catch (e) {
-        Swal.fire({ title: 'Error', text: 'Error de red.', icon: 'error' });
+    } catch(e) {
+      Swal.fire('Error', 'Ocurrió un error al conectar con el servidor.', 'error');
     }
   };
 
-  const filteredSessions = sessions.filter(s => {
-    const sessionDate = s.fechaEjecucion ? s.fechaEjecucion.substring(0, 10) : '';
-    
-    if (filterExactDate) {
-      if (sessionDate !== filterExactDate) return false;
-    } else {
-      if (filterStartDate && sessionDate < filterStartDate) return false;
-      if (filterEndDate && sessionDate > filterEndDate) return false;
-    }
-    return true;
-  });
+  const filteredSessions = sessions;
 
   // Prepare Pareto Data (Bar + Line for Errors)
   const paretoData: any[] = [];
@@ -208,31 +260,45 @@ export const ReportsConsole: React.FC = () => {
             </button>
 
             {showFilters && (
-              <div className="flex gap-2 items-center flex-wrap p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-sm w-full">
                 <input 
                   type="date" 
+                  title="Fecha Exacta" 
                   value={filterExactDate} 
                   onChange={e => setFilterExactDate(e.target.value)} 
                   className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
-                  title="Fecha Exacta"
                 />
-                <span className="text-xs text-slate-400">ó rango:</span>
+                <span className="text-xs text-slate-400 font-bold mx-1">O Rango:</span>
                 <input 
                   type="date" 
+                  title="Fecha Inicio" 
                   value={filterStartDate} 
                   onChange={e => setFilterStartDate(e.target.value)} 
-                  disabled={!!filterExactDate}
-                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs disabled:opacity-50"
-                  title="Fecha Inicio"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
                 />
+                <span className="text-xs text-slate-400">a</span>
                 <input 
                   type="date" 
+                  title="Fecha Fin" 
                   value={filterEndDate} 
                   onChange={e => setFilterEndDate(e.target.value)}
-                  disabled={!!filterExactDate}
-                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs disabled:opacity-50"
-                  title="Fecha Fin"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs"
                 />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por ID..." 
+                  title="Búsqueda Fuzzy"
+                  value={fuzzySearch} 
+                  onChange={e => setFuzzySearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && fetchSessions(0)}
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs flex-1 min-w-[150px]"
+                />
+                <button
+                   onClick={() => fetchSessions(0)}
+                   className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                >
+                   Filtrar
+                </button>
               </div>
             )}
           </div>
@@ -360,7 +426,7 @@ export const ReportsConsole: React.FC = () => {
                 </div>
 
                 {/* Metric Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="metric-cards">
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-center text-center relative">
                         <span className="material-symbols-outlined absolute top-2 right-2 text-blue-500 text-[18px] cursor-help" title={`Mínimo: ${sessionStats.latencyMin?.toFixed(2)} ms\nP25: ${sessionStats.latencyP25?.toFixed(2)} ms\nMediana (P50): ${sessionStats.latencyP50?.toFixed(2)} ms\nP75: ${sessionStats.latencyP75?.toFixed(2)} ms\nP90: ${sessionStats.latencyP90?.toFixed(2)} ms\nP99: ${sessionStats.latencyP99?.toFixed(2)} ms\nMáximo: ${sessionStats.latencyMax?.toFixed(2)} ms`}>info</span>
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1 mt-3">Distribución Latencia</span>
@@ -408,12 +474,18 @@ export const ReportsConsole: React.FC = () => {
                         <span className="text-2xl font-black text-amber-600">{sessionStats.packetRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">pkt/s</span></span>
                         <span className="text-[10px] text-slate-400 mt-1">Total: {sessionStats.totalPackets}</span>
                     </div>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center relative transition-colors hover:bg-slate-100">
+                        <span className="material-symbols-outlined absolute top-2 right-2 text-rose-500 text-[18px] cursor-help" title={`Porcentaje del tráfico clasificado como error de red (retransmisiones, duplicados, caídas).\nUna tasa mayor al umbral crítico penaliza fuertemente el QoS.`}>info</span>
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Errores</span>
+                        <span className="text-2xl font-black text-rose-600">{sessionStats.errorRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">%</span></span>
+                        <span className="text-[10px] text-slate-400 mt-1">Penaliza QoS al exceder umbral</span>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Pareto Chart */}
                     <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative">
-                        <span className="material-symbols-outlined absolute top-4 right-4 text-slate-400 text-[18px] cursor-help" title="Permite identificar los problemas más frecuentes de la red. Retransmisiones: Ocurren por pérdida de paquetes. ICMP Inalcanzable: Host caído o puerto cerrado. RST: Conexión terminada abruptamente.">info</span>
+                        <span className="material-symbols-outlined absolute top-4 right-4 text-slate-400 text-[18px] cursor-help" title={`Permite identificar los problemas más frecuentes de la red.\n\nRetransmisiones: Ocurren por pérdida de paquetes.\nICMP Inalcanzable: Host caído o puerto cerrado.\nRST: Conexión terminada abruptamente.`}>info</span>
                         <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Distribución de Errores de Red</h4>
                         <div className="h-64">
                             {paretoData.length > 0 ? (
@@ -457,6 +529,38 @@ export const ReportsConsole: React.FC = () => {
                                     <span className="text-sm text-slate-400 italic">Sin datos de protocolos</span>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Top IPs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 flex items-center justify-between">
+                            Top 5 IPs Origen (Emisores)
+                            <span className="material-symbols-outlined text-slate-400 text-[18px] cursor-help" title="Los 5 dispositivos que más tráfico generaron. Útil para detectar cuellos de botella u orígenes de ataques.">info</span>
+                        </h4>
+                        <div className="space-y-2">
+                            {sessionStats?.topSourceIps ? Object.entries(sessionStats.topSourceIps).map(([ip, count], idx) => (
+                                <div key={ip} className="flex justify-between items-center text-sm p-2 bg-slate-50 rounded-lg">
+                                    <span className="font-mono text-slate-700"><span className="text-slate-400 font-bold mr-2">{idx + 1}.</span>{ip}</span>
+                                    <span className="font-bold text-indigo-600">{count as number} pkt</span>
+                                </div>
+                            )) : <div className="text-sm text-slate-400 italic text-center py-4">Sin datos</div>}
+                        </div>
+                    </div>
+                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 flex items-center justify-between">
+                            Top 5 IPs Destino (Receptores)
+                            <span className="material-symbols-outlined text-slate-400 text-[18px] cursor-help" title="Los 5 dispositivos que más tráfico recibieron.">info</span>
+                        </h4>
+                        <div className="space-y-2">
+                            {sessionStats?.topDestIps ? Object.entries(sessionStats.topDestIps).map(([ip, count], idx) => (
+                                <div key={ip} className="flex justify-between items-center text-sm p-2 bg-slate-50 rounded-lg">
+                                    <span className="font-mono text-slate-700"><span className="text-slate-400 font-bold mr-2">{idx + 1}.</span>{ip}</span>
+                                    <span className="font-bold text-emerald-600">{count as number} pkt</span>
+                                </div>
+                            )) : <div className="text-sm text-slate-400 italic text-center py-4">Sin datos</div>}
                         </div>
                     </div>
                 </div>

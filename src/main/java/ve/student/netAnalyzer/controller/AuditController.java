@@ -18,9 +18,11 @@ import java.util.List;
 public class AuditController {
 
     private final AuditService auditService;
+    private final ve.student.netAnalyzer.repository.AuditRepository auditRepository;
 
-    public AuditController(AuditService auditService) {
+    public AuditController(AuditService auditService, ve.student.netAnalyzer.repository.AuditRepository auditRepository) {
         this.auditService = auditService;
+        this.auditRepository = auditRepository;
     }
 
     @GetMapping
@@ -65,11 +67,34 @@ public class AuditController {
             return ResponseEntity.badRequest().build();
         }
     }
-    @GetMapping("/export")
-    public ResponseEntity<byte[]> exportAudits(@RequestParam(defaultValue = "CSV") String format) {
+    @PostMapping("/search")
+    public ResponseEntity<org.springframework.data.domain.Page<Audit>> searchAudits(
+            @RequestBody ve.student.netAnalyzer.dto.AuditSearchCriteria criteria,
+            org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<Audit> spec = ve.student.netAnalyzer.specification.AuditSpecification.withCriteria(criteria);
+        return ResponseEntity.ok(auditRepository.findAll(spec, pageable));
+    }
+
+    @GetMapping("/metadata")
+    public ResponseEntity<java.util.Map<String, Object>> getMetadata() {
+        // Find min and max dates
+        List<Audit> all = auditRepository.findAll(org.springframework.data.domain.Sort.by("fechaHora"));
+        java.util.Map<String, Object> meta = new java.util.HashMap<>();
+        if (!all.isEmpty()) {
+            meta.put("minDate", all.get(0).getFechaHora());
+            meta.put("maxDate", all.get(all.size() - 1).getFechaHora());
+        }
+        return ResponseEntity.ok(meta);
+    }
+
+    @PostMapping("/export")
+    public ResponseEntity<byte[]> exportFilteredAudits(
+            @RequestParam(defaultValue = "CSV") String format,
+            @RequestBody ve.student.netAnalyzer.dto.AuditSearchCriteria criteria) {
         try {
             ExportFormat fmt = ExportFormat.valueOf(format.toUpperCase());
-            List<Audit> audits = auditService.listAudits(new AuditFilter());
+            org.springframework.data.jpa.domain.Specification<Audit> spec = ve.student.netAnalyzer.specification.AuditSpecification.withCriteria(criteria);
+            List<Audit> audits = auditRepository.findAll(spec);
             
             if (fmt == ExportFormat.PDF) {
                 byte[] fileContent = ve.student.netAnalyzer.service.impl.AuditExporter.exportListToPdf(audits);

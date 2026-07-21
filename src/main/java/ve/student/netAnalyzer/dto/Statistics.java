@@ -21,6 +21,7 @@ public class Statistics {
     private double sizeP50;
     private double size90thPercentile;
     private double sizeP99;
+    private double errorRate; // Tasa de errores
 
     // Métricas de Puntuación de Red y Latencia Percentil
     private double networkScore;
@@ -58,7 +59,7 @@ public class Statistics {
                       Map<String, Long> topSourceIps,
                       Map<String, Long> topDestIps,
                       double averageJitter, double downloadRate, double packetRate,
-                      double jitter90thPercentile, double size90thPercentile) {
+                      double jitter90thPercentile, double size90thPercentile, double errorRate) {
         this.totalPackets = totalPackets;
         this.peakThroughput = peakThroughput;
         this.primaryProtocol = primaryProtocol;
@@ -70,6 +71,7 @@ public class Statistics {
         this.packetRate = packetRate;
         this.jitter90thPercentile = jitter90thPercentile;
         this.size90thPercentile = size90thPercentile;
+        this.errorRate = errorRate;
     }
 
     public long getTotalPackets() { return totalPackets; }
@@ -146,4 +148,7 @@ public class Statistics {
 
     public double getLatencyMax() { return latencyMax; }
     public void setLatencyMax(double latencyMax) { this.latencyMax = latencyMax; }
+
+    public double getErrorRate() { return errorRate; }
+    public void setErrorRate(double errorRate) { this.errorRate = errorRate; }
 }

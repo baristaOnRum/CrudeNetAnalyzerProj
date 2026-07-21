@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppView } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -46,6 +46,12 @@ export default function App() {
         });
       } catch (e) {}
     }
+    
+    // Cleanup any lingering SweetAlert2 modals that might trap focus in the Login screen
+    import('sweetalert2').then(({ default: Swal }) => {
+       Swal.close();
+    });
+
     setSession({ name: 'Invitado', role: 'OBSERVADOR', token: '' });
     setView('uplink');
     setActiveAnalysisId(null);
@@ -55,17 +61,18 @@ export default function App() {
 
   const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   const WARNING_MS = 20 * 1000; // 20 seconds
-  const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
+  const lastActivityTimeRef = React.useRef<number>(Date.now());
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
 
   useEffect(() => {
     if (view === 'uplink') return;
 
     const resetTimer = () => {
-      setLastActivityTime(Date.now());
-      if (showInactivityWarning) {
-        setShowInactivityWarning(false);
-      }
+      lastActivityTimeRef.current = Date.now();
+      setShowInactivityWarning(prev => {
+        if (prev) return false;
+        return prev;
+      });
     };
 
     const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
@@ -73,13 +80,16 @@ export default function App() {
 
     const interval = setInterval(() => {
       if (isMonitoring || activeAnalysisId !== null) {
-        setLastActivityTime(Date.now());
-        if (showInactivityWarning) setShowInactivityWarning(false);
+        lastActivityTimeRef.current = Date.now();
+        setShowInactivityWarning(prev => {
+          if (prev) return false;
+          return prev;
+        });
         return;
       }
 
       const now = Date.now();
-      const timeInactive = now - lastActivityTime;
+      const timeInactive = now - lastActivityTimeRef.current;
       const timeRemaining = TIMEOUT_MS - timeInactive;
 
       if (timeRemaining <= 0) {
@@ -94,9 +104,10 @@ export default function App() {
           });
         });
       } else if (timeRemaining <= WARNING_MS) {
-        if (!showInactivityWarning) {
-           setShowInactivityWarning(true);
-        }
+        setShowInactivityWarning(prev => {
+           if (!prev) return true;
+           return prev;
+        });
       }
     }, 1000);
 
@@ -104,7 +115,7 @@ export default function App() {
       activityEvents.forEach(evt => window.removeEventListener(evt, resetTimer));
       clearInterval(interval);
     };
-  }, [view, lastActivityTime, isMonitoring, activeAnalysisId, showInactivityWarning]);
+  }, [view, isMonitoring, activeAnalysisId, session.token]);
 
   // Render view screen selector
   const renderContent = () => {

@@ -175,15 +175,19 @@ public class ReportServiceImpl implements ReportService {
                 String src = p.getFuente();
                 String dst = p.getDestino();
                 String proto = p.getTipoPaquete();
-                String flowKey = (src.compareTo(dst) < 0) ? src + "-" + dst + "-" + proto : dst + "-" + src + "-" + proto;
+                // Usar llave unidireccional idéntica a NetworkAnalyzer.tsx
+                String flowKey = src + "-" + dst + "-" + proto;
                 
                 Integer previousRtt = lastRttPerFlow.get(flowKey);
                 if (previousRtt != null) {
                     int currentRtt = p.getTiempoRespuesta();
                     int j = Math.abs(currentRtt - previousRtt);
-                    jitters.add(j);
-                    totalJitter += j;
-                    jitterCount++;
+                    // Descartar deltas absurdos (>2000ms) que son heartbeats/keepalives, no jitter real
+                    if (j <= 2000) {
+                        jitters.add(j);
+                        totalJitter += j;
+                        jitterCount++;
+                    }
                 }
                 lastRttPerFlow.put(flowKey, p.getTiempoRespuesta());
             }
@@ -232,21 +236,32 @@ public class ReportServiceImpl implements ReportService {
         
         double criticalLatency = 150.0;
         double criticalJitter = 30.0;
+        double criticalErrorRate = 5.0; // Default 5%
         try {
             String latStr = configurationService.getParameter("CRITICAL_LATENCY_MS").getValorSeleccionado();
             if (latStr != null && !latStr.isEmpty()) criticalLatency = Double.parseDouble(latStr);
             
             String jitStr = configurationService.getParameter("CRITICAL_JITTER_MS").getValorSeleccionado();
             if (jitStr != null && !jitStr.isEmpty()) criticalJitter = Double.parseDouble(jitStr);
+
+            String errStr = configurationService.getParameter("CRITICAL_ERROR_RATE").getValorSeleccionado();
+            if (errStr != null && !errStr.isEmpty()) criticalErrorRate = Double.parseDouble(errStr);
         } catch(Exception e) {}
+
+        long totalErrors = errorCounts.values().stream().mapToLong(Long::longValue).sum();
+        double errorRate = total > 0 ? ((double) totalErrors / total) * 100.0 : 0.0;
 
         double networkScore = 100.0;
         if (latencyP90 > criticalLatency) {
-            double penalty = ((latencyP90 - criticalLatency) / criticalLatency) * 50.0;
-            networkScore -= Math.min(penalty, 50.0);
+            double penalty = ((latencyP90 - criticalLatency) / criticalLatency) * 35.0;
+            networkScore -= Math.min(penalty, 35.0);
         }
         if (averageJitter > criticalJitter) {
-            double penalty = ((averageJitter - criticalJitter) / criticalJitter) * 30.0;
+            double penalty = ((averageJitter - criticalJitter) / criticalJitter) * 25.0;
+            networkScore -= Math.min(penalty, 25.0);
+        }
+        if (errorRate > criticalErrorRate) {
+            double penalty = ((errorRate - criticalErrorRate) / criticalErrorRate) * 30.0;
             networkScore -= Math.min(penalty, 30.0);
         }
         if (downloadRate < 1000 && total > 100) {
@@ -260,7 +275,7 @@ public class ReportServiceImpl implements ReportService {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
         Statistics stats = new Statistics(total, avgSize, topProtocol, protocolDistribution, topSourceIps, topDestIps,
-                              averageJitter, downloadRate, packetRate, jitter90, size90);
+                              averageJitter, downloadRate, packetRate, jitter90, size90, errorRate);
         stats.setErrorDistribution(errorDistribution);
         stats.setNetworkScore(networkScore);
         

@@ -15,9 +15,11 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final ve.student.netAnalyzer.repository.UserRepository userRepository;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, ve.student.netAnalyzer.repository.UserRepository userRepository) {
         this.userService = userService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -52,5 +54,13 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/search")
+    public ResponseEntity<org.springframework.data.domain.Page<AppUser>> searchUsers(
+            @RequestBody ve.student.netAnalyzer.dto.UserSearchCriteria criteria,
+            org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<AppUser> spec = ve.student.netAnalyzer.specification.UserSpecification.withCriteria(criteria);
+        return ResponseEntity.ok(userRepository.findAll(spec, pageable));
     }
 }
