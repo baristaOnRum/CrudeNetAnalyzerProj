@@ -95,6 +95,7 @@ public class PacketCaptureService {
                 "-e", "icmp.resptime",
                 "-e", "dns.time",
                 "-e", "http.time",
+                "-e", "frame.protocols",
                 "-E", "separator=|",
                 "-l"
         ));
@@ -149,22 +150,24 @@ public class PacketCaptureService {
                             
                             // Parse response time if available in any of the new fields (parts 5 to 9)
                             int responseTimeMs = 0;
-                            for (int idx = 5; idx < parts.length; idx++) {
-                                String t = parts[idx];
-                                if (t != null && !t.isBlank()) {
-                                    try {
-                                        // Tshark usually outputs times in seconds (e.g. 0.045), we want ms
-                                        // Sometimes it comma-separates multiple values if multiple layers match. Take first.
-                                        if (t.contains(",")) t = t.split(",")[0];
-                                        double timeSeconds = Double.parseDouble(t);
-                                        responseTimeMs = (int) Math.round(timeSeconds * 1000.0);
-                                        break; // Found a valid time
-                                    } catch (NumberFormatException ignored) {}
+                            for (int idx = 5; idx < 10; idx++) {
+                                if (idx < parts.length) {
+                                    String t = parts[idx];
+                                    if (t != null && !t.isBlank()) {
+                                        try {
+                                            if (t.contains(",")) t = t.split(",")[0];
+                                            double timeSeconds = Double.parseDouble(t);
+                                            responseTimeMs = (int) Math.round(timeSeconds * 1000.0);
+                                            break;
+                                        } catch (NumberFormatException ignored) {}
+                                    }
                                 }
                             }
                             
+                            String frameProtocols = parts.length > 10 ? parts[10] : "Desconocido";
+                            
                             p.setTiempoRespuesta(responseTimeMs);
-                            p.setRespuesta("Capturado en vivo");
+                            p.setRespuesta("Estado: Recibido OK | Encabezado: " + frameProtocols);
                             p.setTimestamp(java.time.LocalDateTime.now());
 
                             int pktLen = 0;
