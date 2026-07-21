@@ -171,10 +171,11 @@ public class ReportServiceImpl implements ReportService {
                 }
             }
 
-            if (p.getTiempoRespuesta() != null && p.getTiempoRespuesta() > 0 && p.getFuente() != null && p.getDestino() != null) {
+            if (p.getTiempoRespuesta() != null && p.getTiempoRespuesta() > 0 && p.getFuente() != null && p.getDestino() != null && p.getTipoPaquete() != null) {
                 String src = p.getFuente();
                 String dst = p.getDestino();
-                String flowKey = (src.compareTo(dst) < 0) ? src + "-" + dst : dst + "-" + src;
+                String proto = p.getTipoPaquete();
+                String flowKey = (src.compareTo(dst) < 0) ? src + "-" + dst + "-" + proto : dst + "-" + src + "-" + proto;
                 
                 Integer previousRtt = lastRttPerFlow.get(flowKey);
                 if (previousRtt != null) {

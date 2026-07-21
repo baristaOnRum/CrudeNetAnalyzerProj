@@ -324,46 +324,59 @@ export const ReportsConsole: React.FC = () => {
                 
                 {/* Puntuación de Red */}
                 <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-inner">
-                    <span className="text-slate-500 text-sm font-bold uppercase mb-2">Puntuación de Red (QoS)</span>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-slate-500 text-sm font-bold uppercase">Puntuación de Red (QoS)</span>
+                        <span className="material-symbols-outlined text-[#64748B] text-[16px] cursor-help" title="Métrica dinámica calculada en base a la latencia (P90), el jitter y la eficiencia de la sesión. Una puntuación alta indica una red óptima para transmisiones en tiempo real.">info</span>
+                    </div>
                     <div className="flex items-center gap-3">
                         <span className={`text-5xl font-black ${
-                            sessionStats.networkScore >= 80 ? 'text-emerald-500' :
+                            sessionStats.networkScore >= 90 ? 'text-emerald-500' :
+                            sessionStats.networkScore >= 70 ? 'text-blue-500' :
                             sessionStats.networkScore >= 50 ? 'text-amber-500' :
+                            sessionStats.networkScore >= 30 ? 'text-orange-500' :
                             'text-red-500'
                         }`}>
                             {sessionStats.networkScore?.toFixed(0)} <span className="text-2xl font-normal text-slate-400">/ 100</span>
                         </span>
                         <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
-                            sessionStats.networkScore >= 80 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                            sessionStats.networkScore >= 90 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                            sessionStats.networkScore >= 70 ? 'bg-blue-100 text-blue-700 border-blue-300' :
                             sessionStats.networkScore >= 50 ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                            sessionStats.networkScore >= 30 ? 'bg-orange-100 text-orange-700 border-orange-300' :
                             'bg-red-100 text-red-700 border-red-300'
                         }`}>
-                            {sessionStats.networkScore >= 80 ? 'Excelente' :
-                             sessionStats.networkScore >= 50 ? 'Regular' : 'Deficiente'}
+                            {sessionStats.networkScore >= 90 ? 'Excelente' :
+                             sessionStats.networkScore >= 70 ? 'Bueno' : 
+                             sessionStats.networkScore >= 50 ? 'Regular' :
+                             sessionStats.networkScore >= 30 ? 'Deficiente' : 'Crítico'}
                         </div>
                     </div>
-                    <p className="text-xs text-slate-400 mt-2 max-w-lg">
-                        Métrica dinámica calculada en base a la latencia (P99), el jitter y la eficiencia de la sesión. Una puntuación alta indica una red óptima para transmisiones en tiempo real.
+                    <p className="text-xs text-slate-500 mt-3 font-medium max-w-md">
+                        {sessionStats.networkScore >= 90 ? 'Condiciones ideales para videoconferencias y streaming. No se experimentarán retrasos.' :
+                         sessionStats.networkScore >= 70 ? 'Red estable. Suficiente para la mayoría de operaciones corporativas.' : 
+                         sessionStats.networkScore >= 50 ? 'Red con fluctuaciones. Posibles interrupciones ligeras en tiempo real.' :
+                         sessionStats.networkScore >= 30 ? 'Congestión notable. Las aplicaciones sensibles experimentarán cortes.' : 'Red severamente degradada o inoperativa. Riesgo alto de pérdida de datos.'}
                     </p>
                 </div>
 
                 {/* Metric Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-center text-center">
-                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Distribución Latencia</span>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-center text-center relative">
+                        <span className="material-symbols-outlined absolute top-2 right-2 text-blue-500 text-[18px] cursor-help" title={`Mínimo: ${sessionStats.latencyMin?.toFixed(2)} ms\nP25: ${sessionStats.latencyP25?.toFixed(2)} ms\nMediana (P50): ${sessionStats.latencyP50?.toFixed(2)} ms\nP75: ${sessionStats.latencyP75?.toFixed(2)} ms\nP90: ${sessionStats.latencyP90?.toFixed(2)} ms\nP99: ${sessionStats.latencyP99?.toFixed(2)} ms\nMáximo: ${sessionStats.latencyMax?.toFixed(2)} ms`}>info</span>
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1 mt-3">Distribución Latencia</span>
                         <div className="flex-1 flex flex-col items-center justify-center w-full px-2 mt-2">
                            {sessionStats.latencyMax !== undefined ? (() => {
-                               const maxVal = sessionStats.latencyMax * 1.05 || 100;
+                               const maxVal = sessionStats.latencyP90 * 1.05 || 100;
                                const pMin = Math.max(0, (sessionStats.latencyMin / maxVal) * 100);
                                const p25 = Math.max(0, (sessionStats.latencyP25 / maxVal) * 100);
                                const p50 = Math.max(0, (sessionStats.latencyP50 / maxVal) * 100);
                                const p75 = Math.max(0, (sessionStats.latencyP75 / maxVal) * 100);
-                               const pMax = Math.min(100, (sessionStats.latencyMax / maxVal) * 100);
+                               const pMax = Math.min(100, (sessionStats.latencyP90 / maxVal) * 100);
                                return (
-                                <div className="w-full h-10 relative flex items-center group cursor-help" title={`Mínimo: ${sessionStats.latencyMin?.toFixed(2)} ms\nP25: ${sessionStats.latencyP25?.toFixed(2)} ms\nMediana (P50): ${sessionStats.latencyP50?.toFixed(2)} ms\nP75: ${sessionStats.latencyP75?.toFixed(2)} ms\nP90: ${sessionStats.latencyP90?.toFixed(2)} ms\nP99: ${sessionStats.latencyP99?.toFixed(2)} ms\nMáximo: ${sessionStats.latencyMax?.toFixed(2)} ms`}>
+                                <div className="w-full h-10 relative flex items-center group">
                                     {/* Eje base */}
                                     <div className="absolute w-full h-px bg-slate-300 left-0"></div>
-                                    {/* Mechas (Min -> Max) */}
+                                    {/* Mechas (Min -> P90) */}
                                     <div className="absolute h-[2px] bg-slate-500" style={{ left: `${pMin}%`, width: `${pMax - pMin}%` }}></div>
                                     {/* Cuerpo (P25 -> P75) */}
                                     <div className="absolute h-5 bg-rose-200 border border-rose-500 rounded-sm shadow-sm" style={{ left: `${p25}%`, width: `${Math.max(1, p75 - p25)}%`, top: '50%', transform: 'translateY(-50%)' }}></div>
@@ -373,30 +386,24 @@ export const ReportsConsole: React.FC = () => {
                                )
                            })() : <span className="text-sm text-slate-400 mx-auto">Sin datos</span>}
                         </div>
-                        <span className="text-[10px] text-slate-500 mt-2 font-medium">Caja: P25-P75 | Línea: Mediana</span>
+                        <span className="text-[10px] text-slate-500 mt-2 font-medium">Caja: P25-P75 | Línea: Mediana | Tope: P90</span>
                     </div>
-                    <div 
-                        className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-help transition-colors hover:bg-slate-100"
-                        title={`Jitter P50: ${sessionStats.jitterP50?.toFixed(2)} ms\nJitter P90: ${sessionStats.jitter90thPercentile?.toFixed(2)} ms\nJitter P99: ${sessionStats.jitterP99?.toFixed(2)} ms`}
-                    >
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center relative transition-colors hover:bg-slate-100">
+                        <span className="material-symbols-outlined absolute top-2 right-2 text-indigo-500 text-[18px] cursor-help" title={`Jitter P50: ${sessionStats.jitterP50?.toFixed(2)} ms\nJitter P90: ${sessionStats.jitter90thPercentile?.toFixed(2)} ms\nJitter P99: ${sessionStats.jitterP99?.toFixed(2)} ms`}>info</span>
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Jitter Promedio</span>
                         <span className="text-2xl font-black text-indigo-600">{sessionStats.averageJitter?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
                         <span className="text-[10px] text-slate-400 mt-1">P90: {sessionStats.jitter90thPercentile?.toFixed(2)} ms</span>
                     </div>
-                    <div 
-                        className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-help transition-colors hover:bg-slate-100"
-                        title={`Tamaño P50: ${formatBytes(sessionStats.sizeP50)}\nTamaño P90: ${formatBytes(sessionStats.size90thPercentile)}\nTamaño P99: ${formatBytes(sessionStats.sizeP99)}`}
-                    >
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center relative transition-colors hover:bg-slate-100">
+                        <span className="material-symbols-outlined absolute top-2 right-2 text-emerald-500 text-[18px] cursor-help" title={`Tamaño P50: ${formatBytes(sessionStats.sizeP50)}\nTamaño P90: ${formatBytes(sessionStats.size90thPercentile)}\nTamaño P99: ${formatBytes(sessionStats.sizeP99)}`}>info</span>
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Descarga</span>
                         <span className="text-2xl font-black text-emerald-600">
                             {formatBytes(sessionStats.downloadRate).split(' ')[0]} <span className="text-sm font-normal text-slate-400">{formatBytes(sessionStats.downloadRate).split(' ')[1]}/s</span>
                         </span>
                         <span className="text-[10px] text-slate-400 mt-1">P90 Tamaño: {formatBytes(sessionStats.size90thPercentile)}</span>
                     </div>
-                    <div 
-                        className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center cursor-help transition-colors hover:bg-slate-100"
-                        title={`Total de paquetes analizados: ${sessionStats.totalPackets}\nProtocolo principal: ${sessionStats.primaryProtocol}`}
-                    >
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center relative transition-colors hover:bg-slate-100">
+                        <span className="material-symbols-outlined absolute top-2 right-2 text-amber-500 text-[18px] cursor-help" title={`Total de paquetes analizados: ${sessionStats.totalPackets}\nProtocolo principal: ${sessionStats.primaryProtocol}`}>info</span>
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Paquetes</span>
                         <span className="text-2xl font-black text-amber-600">{sessionStats.packetRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">pkt/s</span></span>
                         <span className="text-[10px] text-slate-400 mt-1">Total: {sessionStats.totalPackets}</span>
@@ -405,8 +412,9 @@ export const ReportsConsole: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Pareto Chart */}
-                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Pareto: Distribución de Errores de Red</h4>
+                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative">
+                        <span className="material-symbols-outlined absolute top-4 right-4 text-slate-400 text-[18px] cursor-help" title="Permite identificar los problemas más frecuentes de la red. Retransmisiones: Ocurren por pérdida de paquetes. ICMP Inalcanzable: Host caído o puerto cerrado. RST: Conexión terminada abruptamente.">info</span>
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Distribución de Errores de Red</h4>
                         <div className="h-64">
                             {paretoData.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
@@ -416,45 +424,39 @@ export const ReportsConsole: React.FC = () => {
                                         <YAxis yAxisId="left" tick={{fontSize: 10}} />
                                         <YAxis yAxisId="right" orientation="right" tick={{fontSize: 10}} domain={[0, 100]} />
                                         <Tooltip />
-                                        <Legend wrapperStyle={{fontSize: '10px'}} />
-                                        <Bar yAxisId="left" dataKey="count" name="Frecuencia" barSize={20} fill="#EF4444" />
-                                        <Line yAxisId="right" type="monotone" dataKey="acumulado" name="% Acumulado" stroke="#ff7300" strokeWidth={2} />
+                                        <Bar yAxisId="left" dataKey="count" fill="#3B82F6" name="Cantidad" radius={[4, 4, 0, 0]} />
+                                        <Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" stroke="#EF4444" name="% Acumulado" strokeWidth={2} dot={{r: 4}} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                                    <span className="material-symbols-outlined text-4xl mb-2 text-emerald-500">check_circle</span>
-                                    <p className="text-sm font-medium">No se detectaron errores ni anomalías en esta sesión.</p>
+                                <div className="h-full flex items-center justify-center">
+                                    <span className="text-sm text-slate-400 italic">No se detectaron errores significativos</span>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Pie Chart */}
-                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Proporción de Protocolos (Torta)</h4>
+                    {/* Protocol Pie Chart */}
+                    <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col justify-between relative">
+                        <span className="material-symbols-outlined absolute top-4 right-4 text-slate-400 text-[18px] cursor-help" title="Proporción de tráfico consumido por cada protocolo. Oculta aquellos que representen menos del 16% del tráfico total.">info</span>
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Distribución de Protocolos</h4>
                         <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={pieData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={40}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                        labelLine={false}
-                                        style={{fontSize: '10px'}}
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            {pieData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={true}>
+                                            {pieData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(value: number) => value + " pkt"} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center">
+                                    <span className="text-sm text-slate-400 italic">Sin datos de protocolos</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
