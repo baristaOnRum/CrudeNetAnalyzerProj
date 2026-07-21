@@ -157,11 +157,25 @@ export const ReportsConsole: React.FC = () => {
   }
 
   // Prepare Pie Data (Protocols)
-  const pieData = [];
+  const pieData: any[] = [];
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
   if (sessionStats?.protocolDistribution) {
-      for (const [proto, count] of Object.entries(sessionStats.protocolDistribution)) {
-          pieData.push({ name: proto, value: count });
+      const total = sessionStats.totalPackets || Object.values(sessionStats.protocolDistribution).reduce((a:any, b:any) => a + b, 0) as number;
+      const threshold = 0.16 * total;
+      let otherCount = 0;
+      
+      const sortedProtos = Object.entries(sessionStats.protocolDistribution).sort((a: any, b: any) => b[1] - a[1]);
+      
+      for (const [proto, count] of sortedProtos) {
+          if ((count as number) >= threshold) {
+              pieData.push({ name: proto, value: count });
+          } else {
+              otherCount += (count as number);
+          }
+      }
+      
+      if (otherCount > 0) {
+          pieData.push({ name: 'Otros', value: otherCount });
       }
   }
 
