@@ -54,7 +54,11 @@ public class AuditController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=audit_" + id + "." + fmt.name().toLowerCase());
-            headers.add(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+            if (fmt == ExportFormat.PDF) {
+                headers.add(HttpHeaders.CONTENT_TYPE, "application/pdf");
+            } else {
+                headers.add(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+            }
 
             return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
@@ -66,6 +70,14 @@ public class AuditController {
         try {
             ExportFormat fmt = ExportFormat.valueOf(format.toUpperCase());
             List<Audit> audits = auditService.listAudits(new AuditFilter());
+            
+            if (fmt == ExportFormat.PDF) {
+                byte[] fileContent = ve.student.netAnalyzer.service.impl.AuditExporter.exportListToPdf(audits);
+                HttpHeaders headers = new HttpHeaders();
+                headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=audits.pdf");
+                headers.add(HttpHeaders.CONTENT_TYPE, "application/pdf");
+                return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
+            }
             
             StringBuilder sb = new StringBuilder();
             if (fmt == ExportFormat.CSV) {

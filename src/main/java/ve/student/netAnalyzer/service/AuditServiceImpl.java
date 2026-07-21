@@ -61,6 +61,10 @@ public class AuditServiceImpl implements AuditService {
         Audit audit = getAuditDetails(auditId);
         if (audit == null) return new byte[0];
         
+        if (fmt == ExportFormat.PDF) {
+            return ve.student.netAnalyzer.service.impl.AuditExporter.exportSingleToPdf(audit);
+        }
+        
         StringBuilder sb = new StringBuilder();
         if (fmt == ExportFormat.CSV) {
             sb.append("idSesion,nombreAuditoria,detalleCambio,fechaHora,idUsuario\n");

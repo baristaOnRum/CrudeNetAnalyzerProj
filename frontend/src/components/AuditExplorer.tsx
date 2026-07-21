@@ -45,20 +45,20 @@ export const AuditExplorer: React.FC = () => {
     fetchAudits();
   }, []);
 
-  const handleExportAudit = async (id: string) => {
+  const handleExportAudit = async (id: string, format: 'CSV' | 'PDF' = 'CSV') => {
     try {
-      const res = await fetch(`/api/audits/${id}/export?format=CSV`);
+      const res = await fetch(`/api/audits/${id}/export?format=${format}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `audit_${id}.csv`;
+        a.download = `audit_${id}.${format.toLowerCase()}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
       } else {
-        Swal.fire({ text: 'No se pudo exportar la auditoría.', icon: 'error', confirmButtonColor: '#4F46E5' });
+        Swal.fire({ text: `No se pudo exportar la auditoría a ${format}.`, icon: 'error', confirmButtonColor: '#4F46E5' });
       }
     } catch (e) {
       console.error(e);
@@ -73,32 +73,60 @@ export const AuditExplorer: React.FC = () => {
       <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
         <div className="p-4 border-b border-[#E2E8F0] flex flex-col md:flex-row gap-3 justify-between items-center bg-slate-50">
           <h3 className="font-sans font-bold text-base text-[#0F172A]">Registros de Auditoría del Sistema</h3>
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch('/api/audits/export?format=CSV');
-                if (res.ok) {
-                  const blob = await res.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `audits_full.csv`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  window.URL.revokeObjectURL(url);
-                } else {
-                  Swal.fire('Error', 'Fallo al exportar el registro de auditoría', 'error');
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/audits/export?format=CSV');
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `audits_full.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                  } else {
+                    Swal.fire('Error', 'Fallo al exportar el registro de auditoría', 'error');
+                  }
+                } catch (e) {
+                  console.error(e);
                 }
-              } catch (e) {
-                console.error(e);
-              }
-            }}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-sans font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md"
-          >
-            <span className="material-symbols-outlined text-[17px]">download</span>
-            Exportar Registro (CSV)
-          </button>
+              }}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-sans font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md"
+            >
+              <span className="material-symbols-outlined text-[17px]">download</span>
+              Exportar Registro (CSV)
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/audits/export?format=PDF');
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `audits_full.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                  } else {
+                    Swal.fire('Error', 'Fallo al exportar el registro de auditoría', 'error');
+                  }
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-sans font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md"
+            >
+              <span className="material-symbols-outlined text-[17px]">picture_as_pdf</span>
+              Exportar Registro (PDF)
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -132,10 +160,16 @@ export const AuditExplorer: React.FC = () => {
                         Ver Detalle
                       </button>
                       <button
-                        onClick={() => handleExportAudit(audit.id)}
+                        onClick={() => handleExportAudit(audit.id, 'CSV')}
                         className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-md text-xs font-semibold transition-colors cursor-pointer"
                       >
                         Exportar CSV
+                      </button>
+                      <button
+                        onClick={() => handleExportAudit(audit.id, 'PDF')}
+                        className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-md text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        Exportar PDF
                       </button>
                     </td>
                   </tr>
@@ -172,7 +206,12 @@ export const AuditExplorer: React.FC = () => {
             {
               label: 'Exportar CSV',
               icon: 'download',
-              onClick: () => handleExportAudit(selectedAudit.id)
+              onClick: () => handleExportAudit(selectedAudit.id, 'CSV')
+            },
+            {
+              label: 'Exportar PDF',
+              icon: 'picture_as_pdf',
+              onClick: () => handleExportAudit(selectedAudit.id, 'PDF')
             }
           ]}
         />
