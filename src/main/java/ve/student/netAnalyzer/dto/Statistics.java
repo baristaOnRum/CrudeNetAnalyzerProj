@@ -9,6 +9,7 @@ public class Statistics {
     private Map<String, Long> protocolDistribution;
     private Map<String, Long> topSourceIps;
     private Map<String, Long> topDestIps;
+    private Map<String, Long> errorDistribution;
     
     // Nuevas estadísticas avanzadas
     private double averageJitter;
@@ -80,6 +81,9 @@ public class Statistics {
     
     public Map<String, Long> getTopDestIps() { return topDestIps; }
     public void setTopDestIps(Map<String, Long> topDestIps) { this.topDestIps = topDestIps; }
+
+    public Map<String, Long> getErrorDistribution() { return errorDistribution; }
+    public void setErrorDistribution(Map<String, Long> errorDistribution) { this.errorDistribution = errorDistribution; }
 
     public double getAverageJitter() { return averageJitter; }
     public void setAverageJitter(double averageJitter) { this.averageJitter = averageJitter; }

@@ -132,8 +132,10 @@ public class ReportServiceImpl implements ReportService {
                 .limit(5)
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue(), (e1, e2) -> e1, LinkedHashMap::new));
 
-        // Advanced metrics: Jitter, Rates, Percentiles
+        // Advanced metrics: Jitter, Rates, Percentiles, Errors
         packets.sort(Comparator.comparing(p -> p.getTimestamp() != null ? p.getTimestamp() : LocalDateTime.MIN));
+        
+        Map<String, Long> errorCounts = new java.util.HashMap<>();
         
         double totalJitter = 0;
         int jitterCount = 0;
@@ -149,6 +151,26 @@ public class ReportServiceImpl implements ReportService {
             sizes.add(length);
             totalBytes += length;
             
+            // Detección de errores en p.getContenidos()
+            String info = p.getContenidos();
+            if (info != null) {
+                if (info.contains("Retransmission") && !info.contains("Fast") && !info.contains("Spurious")) {
+                    errorCounts.put("Retransmisión TCP", errorCounts.getOrDefault("Retransmisión TCP", 0L) + 1);
+                } else if (info.contains("Fast Retransmission")) {
+                    errorCounts.put("Retransmisión Rápida TCP", errorCounts.getOrDefault("Retransmisión Rápida TCP", 0L) + 1);
+                } else if (info.contains("Dup ACK") || info.contains("Duplicate ACK")) {
+                    errorCounts.put("ACK Duplicado", errorCounts.getOrDefault("ACK Duplicado", 0L) + 1);
+                } else if (info.contains("Destination unreachable")) {
+                    errorCounts.put("Destino Inalcanzable (ICMP)", errorCounts.getOrDefault("Destino Inalcanzable (ICMP)", 0L) + 1);
+                } else if (info.contains("Time-to-live exceeded")) {
+                    errorCounts.put("TTL Expirado", errorCounts.getOrDefault("TTL Expirado", 0L) + 1);
+                } else if (info.contains("RST")) {
+                    errorCounts.put("Conexión Reseteada (RST)", errorCounts.getOrDefault("Conexión Reseteada (RST)", 0L) + 1);
+                } else if (info.contains("Malformed")) {
+                    errorCounts.put("Paquete Malformado", errorCounts.getOrDefault("Paquete Malformado", 0L) + 1);
+                }
+            }
+
             if (p.getTiempoRespuesta() != null && p.getTiempoRespuesta() > 0 && p.getFuente() != null && p.getDestino() != null) {
                 String src = p.getFuente();
                 String dst = p.getDestino();
@@ -221,9 +243,15 @@ public class ReportServiceImpl implements ReportService {
             networkScore -= 10.0;
         }
         if (networkScore < 0) networkScore = 0;
+        
+        Map<String, Long> errorDistribution = errorCounts.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(10)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
         Statistics stats = new Statistics(total, avgSize, topProtocol, protocolDistribution, topSourceIps, topDestIps,
                               averageJitter, downloadRate, packetRate, jitter90, size90);
+        stats.setErrorDistribution(errorDistribution);
         stats.setLatencyMean(latencyMean);
         stats.setLatencyP50(latencyP50);
         stats.setLatencyP90(latencyP90);
