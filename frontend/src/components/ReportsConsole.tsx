@@ -11,6 +11,14 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer 
 } from 'recharts';
 
+const formatBytes = (bytes: number = 0) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 interface AnalisisRed {
   id: number;
   fechaEjecucion: string;
@@ -342,9 +350,9 @@ export const ReportsConsole: React.FC = () => {
                 {/* Metric Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
-                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Latencia (P99)</span>
-                        <span className="text-2xl font-black text-rose-600">{sessionStats.latencyP99?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
-                        <span className="text-[10px] text-slate-400 mt-1">Media: {sessionStats.latencyMean?.toFixed(2)} ms | P50: {sessionStats.latencyP50?.toFixed(2)} ms</span>
+                        <span className="text-slate-500 text-xs font-bold uppercase mb-1">Latencia (P90)</span>
+                        <span className="text-2xl font-black text-rose-600">{sessionStats.latencyP90?.toFixed(2)} <span className="text-sm font-normal text-slate-400">ms</span></span>
+                        <span className="text-[10px] text-slate-400 mt-1">Media: {sessionStats.latencyMean?.toFixed(2)} ms | P99: {sessionStats.latencyP99?.toFixed(2)} ms</span>
                     </div>
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Jitter Promedio</span>
@@ -353,8 +361,10 @@ export const ReportsConsole: React.FC = () => {
                     </div>
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Descarga</span>
-                        <span className="text-2xl font-black text-emerald-600">{sessionStats.downloadRate?.toFixed(2)} <span className="text-sm font-normal text-slate-400">B/s</span></span>
-                        <span className="text-[10px] text-slate-400 mt-1">P90 Tamaño: {sessionStats.size90thPercentile?.toFixed(2)} B</span>
+                        <span className="text-2xl font-black text-emerald-600">
+                            {formatBytes(sessionStats.downloadRate).split(' ')[0]} <span className="text-sm font-normal text-slate-400">{formatBytes(sessionStats.downloadRate).split(' ')[1]}/s</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 mt-1">P90 Tamaño: {formatBytes(sessionStats.size90thPercentile)}</span>
                     </div>
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center">
                         <span className="text-slate-500 text-xs font-bold uppercase mb-1">Tasa de Paquetes</span>

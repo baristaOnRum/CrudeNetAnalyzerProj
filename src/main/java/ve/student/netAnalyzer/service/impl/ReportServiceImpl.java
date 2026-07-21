@@ -231,8 +231,8 @@ public class ReportServiceImpl implements ReportService {
         } catch(Exception e) {}
 
         double networkScore = 100.0;
-        if (latencyP99 > criticalLatency) {
-            double penalty = ((latencyP99 - criticalLatency) / criticalLatency) * 50.0;
+        if (latencyP90 > criticalLatency) {
+            double penalty = ((latencyP90 - criticalLatency) / criticalLatency) * 50.0;
             networkScore -= Math.min(penalty, 50.0);
         }
         if (averageJitter > criticalJitter) {
