@@ -47,3 +47,5 @@ frontend/backend.jar
 frontend/release/
 reports/
 *.db-journal
+*.db-shm
+*.db-wal
