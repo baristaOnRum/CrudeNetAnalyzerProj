@@ -169,14 +169,13 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
               <tr className="bg-[#eff4ff]/60 border-b border-[#cbd5e1] select-none text-[10px] font-mono tracking-wider font-bold text-slate-500 uppercase">
                 <th className="px-6 py-3.5 pl-6">Nombre del Operador</th>
                 <th className="px-6 py-3.5">Rol</th>
-                <th className="px-6 py-3.5">Estado</th>
                 <th className="px-6 py-3.5 text-right pr-6">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans text-sm font-semibold text-[#191c1e] bg-white">
               {operators.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={3} className="p-8 text-center text-slate-400 italic">
                     No se encontraron operadores
                   </td>
                 </tr>
@@ -199,9 +198,6 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-extrabold tracking-wider bg-slate-100 text-slate-600 border border-slate-200`}>
                         {op.role}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-[12px] font-medium text-secondary font-bold">Activo</span>
                     </td>
                     <td className="px-6 py-4 text-right pr-6 select-none space-x-1">
                       <button
