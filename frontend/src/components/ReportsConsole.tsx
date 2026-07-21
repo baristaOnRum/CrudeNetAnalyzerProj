@@ -144,15 +144,15 @@ export const ReportsConsole: React.FC = () => {
     return true;
   });
 
-  // Prepare Pareto Data (Bar + Line for Errors)
-  const paretoData: any[] = [];
-  if (sessionStats?.errorDistribution) {
+  // Prepare Pareto Data (Bar + Line for IPs)
+  const paretoData = [];
+  if (sessionStats?.topSourceIps) {
       let cumulative = 0;
-      const total = Object.values(sessionStats.errorDistribution).reduce((a:any, b:any) => a + b, 0) as number;
-      for (const [errorName, count] of Object.entries(sessionStats.errorDistribution)) {
+      const total = Object.values(sessionStats.topSourceIps).reduce((a:any, b:any) => a + b, 0) as number;
+      for (const [ip, count] of Object.entries(sessionStats.topSourceIps)) {
           cumulative += (count as number);
           const cumPercentage = total > 0 ? (cumulative / total) * 100 : 0;
-          paretoData.push({ errorName, count, acumulado: cumPercentage });
+          paretoData.push({ ip, count, acumulado: cumPercentage });
       }
   }
 
@@ -352,27 +352,20 @@ export const ReportsConsole: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Pareto Chart */}
                     <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Pareto: Distribución de Errores de Red</h4>
+                        <h4 className="text-xs font-bold text-slate-600 uppercase mb-4 text-center">Pareto: Tráfico por IPs Origen</h4>
                         <div className="h-64">
-                            {paretoData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart data={paretoData} margin={{bottom: 20}}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                        <XAxis dataKey="errorName" tick={{fontSize: 9}} interval={0} angle={-25} textAnchor="end" height={60} />
-                                        <YAxis yAxisId="left" tick={{fontSize: 10}} />
-                                        <YAxis yAxisId="right" orientation="right" tick={{fontSize: 10}} domain={[0, 100]} />
-                                        <Tooltip />
-                                        <Legend wrapperStyle={{fontSize: '10px'}} />
-                                        <Bar yAxisId="left" dataKey="count" name="Frecuencia" barSize={20} fill="#EF4444" />
-                                        <Line yAxisId="right" type="monotone" dataKey="acumulado" name="% Acumulado" stroke="#ff7300" strokeWidth={2} />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                                    <span className="material-symbols-outlined text-4xl mb-2 text-emerald-500">check_circle</span>
-                                    <p className="text-sm font-medium">No se detectaron errores ni anomalías en esta sesión.</p>
-                                </div>
-                            )}
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={paretoData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="ip" tick={{fontSize: 10}} interval={0} angle={-15} textAnchor="end" />
+                                    <YAxis yAxisId="left" tick={{fontSize: 10}} />
+                                    <YAxis yAxisId="right" orientation="right" tick={{fontSize: 10}} domain={[0, 100]} />
+                                    <Tooltip />
+                                    <Legend wrapperStyle={{fontSize: '10px'}} />
+                                    <Bar yAxisId="left" dataKey="count" name="Frecuencia" barSize={20} fill="#4F46E5" />
+                                    <Line yAxisId="right" type="monotone" dataKey="acumulado" name="% Acumulado" stroke="#ff7300" strokeWidth={2} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
 
