@@ -124,6 +124,8 @@ public class ReportServiceImpl implements ReportService {
         List<Integer> jitters = new ArrayList<>();
         List<Integer> sizes = new ArrayList<>();
         double totalBytes = 0;
+        
+        java.util.Map<String, Integer> lastRttPerFlow = new java.util.HashMap<>();
 
         for (int i = 0; i < packets.size(); i++) {
             Packet p = packets.get(i);
@@ -131,14 +133,20 @@ public class ReportServiceImpl implements ReportService {
             sizes.add(length);
             totalBytes += length;
             
-            if (i > 0) {
-                Packet prev = packets.get(i - 1);
-                int t1 = p.getTiempoRespuesta() != null ? p.getTiempoRespuesta() : 0;
-                int t2 = prev.getTiempoRespuesta() != null ? prev.getTiempoRespuesta() : 0;
-                int j = Math.abs(t1 - t2);
-                jitters.add(j);
-                totalJitter += j;
-                jitterCount++;
+            if (p.getTiempoRespuesta() != null && p.getTiempoRespuesta() > 0 && p.getFuente() != null && p.getDestino() != null) {
+                String src = p.getFuente();
+                String dst = p.getDestino();
+                String flowKey = (src.compareTo(dst) < 0) ? src + "-" + dst : dst + "-" + src;
+                
+                Integer previousRtt = lastRttPerFlow.get(flowKey);
+                if (previousRtt != null) {
+                    int currentRtt = p.getTiempoRespuesta();
+                    int j = Math.abs(currentRtt - previousRtt);
+                    jitters.add(j);
+                    totalJitter += j;
+                    jitterCount++;
+                }
+                lastRttPerFlow.put(flowKey, p.getTiempoRespuesta());
             }
         }
         

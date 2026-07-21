@@ -90,6 +90,11 @@ public class PacketCaptureService {
                 "-e", "_ws.col.Protocol",
                 "-e", "frame.len",
                 "-e", "_ws.col.Info",
+                "-e", "tcp.analysis.ack_rtt",
+                "-e", "udp.time_delta",
+                "-e", "icmp.resptime",
+                "-e", "dns.time",
+                "-e", "http.time",
                 "-E", "separator=|",
                 "-l"
         ));
@@ -141,7 +146,24 @@ public class PacketCaptureService {
                             p.setDestino(dstIp != null && !dstIp.isEmpty() ? dstIp : "N/A");
                             p.setTipoPaquete(proto != null && !proto.isEmpty() ? proto : "Unknown");
                             p.setContenidos(info != null && !info.isEmpty() ? info : "No Info");
-                            p.setTiempoRespuesta(0);
+                            
+                            // Parse response time if available in any of the new fields (parts 5 to 9)
+                            int responseTimeMs = 0;
+                            for (int idx = 5; idx < parts.length; idx++) {
+                                String t = parts[idx];
+                                if (t != null && !t.isBlank()) {
+                                    try {
+                                        // Tshark usually outputs times in seconds (e.g. 0.045), we want ms
+                                        // Sometimes it comma-separates multiple values if multiple layers match. Take first.
+                                        if (t.contains(",")) t = t.split(",")[0];
+                                        double timeSeconds = Double.parseDouble(t);
+                                        responseTimeMs = (int) Math.round(timeSeconds * 1000.0);
+                                        break; // Found a valid time
+                                    } catch (NumberFormatException ignored) {}
+                                }
+                            }
+                            
+                            p.setTiempoRespuesta(responseTimeMs);
                             p.setRespuesta("Capturado en vivo");
                             p.setTimestamp(java.time.LocalDateTime.now());
 

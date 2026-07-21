@@ -8,6 +8,7 @@ import { Modal } from './common/Modal';
 
 interface NetworkPacket {
   id: string;
+  realId?: number;
   timestamp: string;
   sourceIp: string;
   destIp: string;
@@ -59,6 +60,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
         }
         const mapped = rawList.map((p: any) => ({
           id: p.id ? `PKT-${p.id}` : `PKT-${Math.floor(Math.random() * 90000)}`,
+          realId: p.id,
           timestamp: new Date().toISOString().substring(11, 23),
           sourceIp: p.fuente,
           destIp: p.destino,
@@ -88,6 +90,27 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
   }, [isPlaying, activeAnalysisId, currentPage]);
 
   const handleTogglePlay = () => setIsPlaying(!isPlaying);
+
+  const handleViewDetail = async (pkt: NetworkPacket) => {
+    if (pkt.realId) {
+      try {
+        const res = await fetch(`/api/packets/${pkt.realId}`);
+        if (res.ok) {
+          const detail = await res.json();
+          setSelectedPacket({
+            ...pkt,
+            content: detail.contenidos || pkt.content,
+            length: detail.longitud ?? pkt.length
+          });
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to load packet details", e);
+      }
+    }
+    // Fallback to list data if fetch fails or no realId
+    setSelectedPacket(pkt);
+  };
 
   const filteredPackets = packets.filter((p) => {
     // 1. Session filter
@@ -300,7 +323,7 @@ export const PacketManagement: React.FC<PacketManagementProps> = ({ activeAnalys
                     <td className="p-4 text-right font-semibold">{pkt.length}</td>
                     <td className="p-4 text-right pr-6">
                       <button
-                        onClick={() => setSelectedPacket(pkt)}
+                        onClick={() => handleViewDetail(pkt)}
                         className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-primary border border-primary/20 rounded-md text-xs font-sans font-semibold flex items-center justify-end gap-1 ml-auto transition-colors cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[15px]">visibility</span>

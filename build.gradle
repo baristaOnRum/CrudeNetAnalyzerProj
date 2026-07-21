@@ -43,6 +43,7 @@ tasks.register('unitTest', Test) {
 	group = 'verification'
 	description = 'Runs the unit tests.'
 	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'test'
 	
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
@@ -57,6 +58,7 @@ tasks.register('functionalTest', Test) {
 	group = 'verification'
 	description = 'Runs the functional and integration tests.'
 	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'test'
 	
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath

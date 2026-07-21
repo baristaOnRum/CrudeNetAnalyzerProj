@@ -11,6 +11,10 @@ import ve.student.netAnalyzer.dto.InterfaceDto;
 import ve.student.netAnalyzer.model.AnalisisRed;
 import ve.student.netAnalyzer.service.AnalysisService;
 import ve.student.netAnalyzer.service.speedtest.ActiveAnalysisService;
+import ve.student.netAnalyzer.service.AuditService;
+import ve.student.netAnalyzer.service.IpResolutionService;
+import ve.student.netAnalyzer.dto.AuditDto;
+import java.time.LocalDateTime;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,12 @@ public class AnalysisController {
 
     @Autowired
     private ActiveAnalysisService activeAnalysisService;
+
+    @Autowired
+    private AuditService auditService;
+
+    @Autowired
+    private IpResolutionService ipResolutionService;
 
     @PostMapping("/interface")
     public ResponseEntity<String> registerInterface(@RequestBody InterfaceDto dto) {
@@ -58,6 +68,13 @@ public class AnalysisController {
 
     @PostMapping("/interface/{interfaceId}/analyze")
     public ResponseEntity<AnalysisResult> analyzeInterface(@PathVariable String interfaceId) {
+        String ip = ipResolutionService.getPublicIp();
+        AuditDto audit = new AuditDto();
+        audit.setNombreAuditoria("Ejecución de Análisis Pasivo");
+        audit.setDetalleCambio("Se inició un análisis pasivo en la interfaz: " + interfaceId + ". IP Pública detectada: " + ip);
+        audit.setFechaHora(LocalDateTime.now());
+        auditService.registerAudit(audit);
+
         return ResponseEntity.ok(analysisService.analyzePacketsOnInterface(interfaceId));
     }
 
@@ -102,6 +119,13 @@ public class AnalysisController {
     @PostMapping("/active/speedtest")
     public ResponseEntity<?> runActiveSpeedTest(@RequestBody ActiveAnalysisRequest request) {
         try {
+            String ip = ipResolutionService.getPublicIp();
+            AuditDto audit = new AuditDto();
+            audit.setNombreAuditoria("Ejecución de Análisis Activo");
+            audit.setDetalleCambio("Se inició un análisis activo (proveedor: " + request.getProvider() + ") usando interfaz: " + request.getInterfaceName() + ". IP Pública: " + ip);
+            audit.setFechaHora(LocalDateTime.now());
+            auditService.registerAudit(audit);
+
             ActiveAnalysisResult result = activeAnalysisService.executeActiveAnalysis(request);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
@@ -111,10 +135,6 @@ public class AnalysisController {
         }
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleNotFound(RuntimeException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
-    }
 
     @GetMapping("/{id}/summary")
     public ResponseEntity<ve.student.netAnalyzer.dto.AnalysisSummary> getAnalysisSummary(@PathVariable Long id) {

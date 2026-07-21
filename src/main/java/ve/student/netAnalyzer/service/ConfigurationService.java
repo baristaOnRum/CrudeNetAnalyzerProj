@@ -7,4 +7,5 @@ public interface ConfigurationService {
     ConfigParameter modifyParameter(String key, String value);
     void manageDatabaseConnection(DbConnectionDto dbConfig);
     DbConnectionDto getCurrentDatabaseConnection();
+    boolean testDatabaseConnection(DbConnectionDto dbConfig);
 }

@@ -14,9 +14,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.springframework.test.context.ActiveProfiles;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@ActiveProfiles("test")
 public class UserFunctionalTest {
 
     @Autowired
@@ -31,7 +34,7 @@ public class UserFunctionalTest {
 
     @Test
     public void testRegisterUser_Success() throws Exception {
-        String userJson = "{\"nombre\":\"newuser\",\"passHasheada\":\"123\",\"rol\":\"USER\"}";
+        String userJson = "{\"nombre\":\"newuser\",\"passHasheada\":\"123\",\"rol\":\"ANALYST\"}";
         mockMvc.perform(post("/api/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(userJson))
@@ -40,16 +43,31 @@ public class UserFunctionalTest {
 
     @Test
     public void testRegisterUser_EmailAlreadyExists() throws Exception {
-        String userJson = "{\"nombre\":\"admin\",\"passHasheada\":\"123\",\"rol\":\"ADMIN\"}";
+        String userJson = "{\"nombre\":\"admin2\",\"passHasheada\":\"123\",\"rol\":\"ADMIN\"}";
+        // First register
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(userJson));
+        // Then try again
         mockMvc.perform(post("/api/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(userJson))
-                .andExpect(status().isBadRequest()); // Asumiendo badRequest
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     public void testDeleteUser_Success() throws Exception {
-        mockMvc.perform(delete("/api/users/2") // asumiendo un ID
+        String userJson = "{\"nombre\":\"todelete\",\"passHasheada\":\"123\",\"rol\":\"ANALYST\"}";
+        
+        String response = mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(userJson))
+                .andReturn().getResponse().getContentAsString();
+                
+        // Extract ID (assuming simple format like {"id":3,...})
+        String idStr = response.replaceAll(".*\"id\":(\\d+).*", "$1");
+        
+        mockMvc.perform(delete("/api/users/" + idStr)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }

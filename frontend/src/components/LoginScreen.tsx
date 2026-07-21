@@ -5,6 +5,8 @@
 
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
+import { DatabaseSettings } from './DatabaseSettings';
+import { Modal } from './common/Modal';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { sourceId: string; role: string; token: string }) => void;
@@ -14,6 +16,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [sourceId, setSourceId] = useState('SYS-01-LOCAL');
   const [password, setPassword] = useState('ADMIN-ACCESS-SECRET-KEY');
   const [status, setStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
+  const [showDbModal, setShowDbModal] = useState(false);
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
     if (!sourceId || !password) {
@@ -182,6 +185,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <span className="material-symbols-outlined text-[18px] text-amber-600">person_play</span>
               Continuar como Invitado
             </button>
+
+            <button
+              type="button"
+              onClick={() => setShowDbModal(true)}
+              className="w-full py-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] text-slate-600">database</span>
+              Configurar Base de Datos
+            </button>
           </div>
         </div>
 
@@ -208,6 +220,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
         </footer>
       </main>
+
+      <Modal
+        isOpen={showDbModal}
+        onClose={() => setShowDbModal(false)}
+        title="Configuración de Base de Datos Local"
+        subtitle="Configure los parámetros de conexión antes de iniciar sesión. Requiere reinicio del backend."
+        icon="database"
+      >
+        <DatabaseSettings isLoginContext={true} onConfigChange={() => setShowDbModal(false)} />
+      </Modal>
 
       {/* Decorative Corner for Tech Aesthetic */}
       <div className="fixed bottom-6 right-6 opacity-30 pointer-events-none hidden md:block">

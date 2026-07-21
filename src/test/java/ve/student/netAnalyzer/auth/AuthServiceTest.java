@@ -59,7 +59,7 @@ class AuthServiceTest {
     void testLogout_Success() {
         // First login to get a valid token
         Credentials creds = new Credentials("user", "user123");
-        AppUser mockUser = new AppUser("user", "user123", AppRole.USER);
+        AppUser mockUser = new AppUser("user", "user123", AppRole.ANALYST);
         when(userRepository.findByNombre("user")).thenReturn(Optional.of(mockUser));
 
         AuthToken token = authService.login(creds);
@@ -74,14 +74,14 @@ class AuthServiceTest {
 
     @Test
     void testLoginAsGuest_Success() {
-        AppUser mockGuest = new AppUser("guest", "guest", AppRole.GUEST);
+        AppUser mockGuest = new AppUser("guest", "guest", AppRole.VIEWER);
         when(userRepository.findByNombre("guest")).thenReturn(Optional.of(mockGuest));
 
         AuthToken token = authService.loginAsGuest();
         
         assertNotNull(token);
         assertNotNull(token.getToken());
-        assertEquals("GUEST", token.getRole());
+        assertEquals("VIEWER", token.getRole());
         assertTrue(authService.isTokenActive(token.getToken()));
     }
 }

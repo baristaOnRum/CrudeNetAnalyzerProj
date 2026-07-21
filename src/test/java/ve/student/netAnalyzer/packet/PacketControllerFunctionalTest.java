@@ -23,8 +23,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import org.springframework.test.context.ActiveProfiles;
+
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class PacketControllerFunctionalTest {
 
     @Autowired
@@ -42,7 +45,7 @@ class PacketControllerFunctionalTest {
         packet.setTipoPaquete("TCP");
         packet.setFuente("192.168.0.1");
 
-        when(packetService.listPackets(any(PacketFilter.class))).thenReturn(List.of(packet));
+        when(packetService.listPackets(any(PacketFilter.class), any(Long.class))).thenReturn(List.of(packet));
 
         mockMvc.perform(get("/api/packets"))
                 .andExpect(status().isOk())
@@ -65,5 +68,21 @@ class PacketControllerFunctionalTest {
                 .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tipoPaquete").value("UDP"));
+    }
+
+    @Test
+    void testGetPacketDetails() throws Exception {
+        Packet packet = new Packet();
+        packet.setId(1L);
+        packet.setTipoPaquete("ICMP");
+        
+        when(packetService.getPacketDetails(1L)).thenReturn(packet);
+        
+        mockMvc.perform(get("/api/packets/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tipoPaquete").value("ICMP"));
+                
+        mockMvc.perform(get("/api/packets/999"))
+                .andExpect(status().isNotFound());
     }
 }

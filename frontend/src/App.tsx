@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppView } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -53,6 +53,59 @@ export default function App() {
 
 
 
+  const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  const WARNING_MS = 20 * 1000; // 20 seconds
+  const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+
+  useEffect(() => {
+    if (view === 'uplink') return;
+
+    const resetTimer = () => {
+      setLastActivityTime(Date.now());
+      if (showInactivityWarning) {
+        setShowInactivityWarning(false);
+      }
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    activityEvents.forEach(evt => window.addEventListener(evt, resetTimer));
+
+    const interval = setInterval(() => {
+      if (isMonitoring || activeAnalysisId !== null) {
+        setLastActivityTime(Date.now());
+        if (showInactivityWarning) setShowInactivityWarning(false);
+        return;
+      }
+
+      const now = Date.now();
+      const timeInactive = now - lastActivityTime;
+      const timeRemaining = TIMEOUT_MS - timeInactive;
+
+      if (timeRemaining <= 0) {
+        handleLogout();
+        setShowInactivityWarning(false);
+        import('sweetalert2').then(({ default: Swal }) => {
+          Swal.fire({
+            title: 'Sesión Expirada',
+            text: 'Su sesión ha sido cerrada por inactividad.',
+            icon: 'info',
+            confirmButtonColor: '#4F46E5'
+          });
+        });
+      } else if (timeRemaining <= WARNING_MS) {
+        if (!showInactivityWarning) {
+           setShowInactivityWarning(true);
+        }
+      }
+    }, 1000);
+
+    return () => {
+      activityEvents.forEach(evt => window.removeEventListener(evt, resetTimer));
+      clearInterval(interval);
+    };
+  }, [view, lastActivityTime, isMonitoring, activeAnalysisId, showInactivityWarning]);
+
   // Render view screen selector
   const renderContent = () => {
     switch (view) {
@@ -67,7 +120,7 @@ export default function App() {
       case 'users':
         return <UserManager currentUserRole={session.role} />;
       case 'settings':
-        return <SettingsPanel currentUserRole={session.role} />;
+        return <SettingsPanel currentUserRole={session.role} onConfigChange={handleLogout} />;
       default:
         return <PacketManagement activeAnalysisId={activeAnalysisId} />;
     }
@@ -83,7 +136,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-[#f8f9ff] text-[#191c1e] font-sans antialiased">
+      <div className="min-h-screen bg-[#f8f9ff] text-[#191c1e] font-sans antialiased relative">
         {/* Sidebar navigation */}
         <Sidebar
           currentView={view}
@@ -109,6 +162,33 @@ export default function App() {
             </ErrorBoundary>
           </main>
         </div>
+
+        {/* Modal Inactividad */}
+        {showInactivityWarning && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
+            <div className="bg-white border border-amber-200 rounded-2xl shadow-xl p-6 w-full max-w-sm m-4 relative animate-[slideUp_0.2s_ease-out] transform">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shadow-inner">
+                  <span className="material-symbols-outlined text-[32px]">hourglass_bottom</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Inactividad Detectada</h3>
+                  <p className="text-sm text-slate-500 mt-1">Su sesión expirará en breve por falta de actividad.</p>
+                  <p className="text-xs font-mono font-bold text-amber-600 mt-2">Mueva el ratón o presione una tecla para mantener la sesión.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setLastActivityTime(Date.now());
+                    setShowInactivityWarning(false);
+                  }}
+                  className="w-full mt-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                >
+                  Extender Sesión
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );

@@ -110,7 +110,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             throw new IllegalArgumentException("Analysis ID cannot be null");
         }
         AnalisisRed ar = repository.findById(analysisId.intValue())
-                .orElseThrow(() -> new RuntimeException("Analysis not found with ID: " + analysisId));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Analysis not found with ID: " + analysisId));
         
         // Cargar y establecer como la sesión de análisis activa por defecto para visualización
         sessionManagerService.setActiveAnalysis(ar);

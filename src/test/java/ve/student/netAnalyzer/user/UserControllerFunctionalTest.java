@@ -57,7 +57,7 @@ class UserControllerFunctionalTest {
 
         AppUser savedUser = new AppUser();
         savedUser.setNombre("nuevo");
-        savedUser.setRol(ve.student.netAnalyzer.model.AppRole.USER);
+        savedUser.setRol(ve.student.netAnalyzer.model.AppRole.ANALYST);
 
         when(userService.registerUser(any(UserRegistrationDto.class))).thenReturn(savedUser);
 
@@ -73,7 +73,7 @@ class UserControllerFunctionalTest {
         AppUser user = new AppUser();
         user.setId(1L);
         user.setNombre("detallesUser");
-        user.setRol(ve.student.netAnalyzer.model.AppRole.USER);
+        user.setRol(ve.student.netAnalyzer.model.AppRole.ANALYST);
 
         when(userService.getUserDetails(1L)).thenReturn(user);
 

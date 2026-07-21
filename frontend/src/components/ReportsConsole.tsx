@@ -174,13 +174,6 @@ export const ReportsConsole: React.FC = () => {
             <h3 className="font-bold text-base text-[#0F172A]">
               Historial de Sesiones de Análisis de Red
             </h3>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-primary/95 transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">add_circle</span>
-              Crear Sesión
-            </button>
           </div>
 
           <div className="flex flex-col gap-3">

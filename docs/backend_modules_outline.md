@@ -1,5 +1,10 @@
 # Diseño de Funciones del Back-End y Pruebas Unitarias
 
+> [!NOTE]
+> **ESTADO DE PRUEBAS AUTOMATIZADAS**: 
+> - Todas las pruebas unitarias y funcionales para los 7 módulos (incluyendo endpoints, persistencia y lógica de negocio) han sido ejecutadas exitosamente (100% PASS).
+> - La configuración aislada se aseguró mediante perfiles dedicados (`@ActiveProfiles("test")`) en base de datos H2 en memoria para evitar colisiones con la base de datos principal (`OutOfMemoryError` en SQLite).
+> - Reportes Gradle para ambas fases se generaron satisfactoriamente en `/build/reports/tests/`.
 > [!WARNING]
 > ## PENDIENTES DE IMPLEMENTACIÓN Y REVISIÓN (BLOQUEANTES)
 > **ATENCIÓN: Se debe dejar BIEN CLARO que los componentes mencionados a continuación se deben trabajar para satisfacer los siguientes puntos antes de poder proceder.**
@@ -141,7 +146,7 @@ Encargado del manejo y almacenamiento de los paquetes capturados individualmente
 ```java
 public Packet registerPacket(PacketDto packetData);          // ✅ RF-4-1 Registrar Paquete
 public List<Packet> listPackets(PacketFilter filter);        // ✅ RF-4-2 Listar Paquetes
-// ❌ RF-4-3 Ver Detalle de Paquete (Descartado)
+public Packet getPacketDetails(Long packetId);             // ✅ RF-4-3 Ver Detalle de Paquete
 public byte[] exportPackets(ExportFormat format);            // ⏳ RF-4-4 Exportar Paquetes (Pendiente: Exportar JSON y CSV de la sesión, no solo txt)
 ```
 

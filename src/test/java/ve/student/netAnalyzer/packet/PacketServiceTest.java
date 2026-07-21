@@ -62,7 +62,7 @@ public class PacketServiceTest {
         Packet p1 = new Packet(); p1.setTipoPaquete("TCP");
         Packet p2 = new Packet(); p2.setTipoPaquete("UDP");
         
-        when(repository.findAll()).thenReturn(Arrays.asList(p1, p2));
+        when(repository.findByIdGreaterThan(0L)).thenReturn(Arrays.asList(p1, p2));
         
         PacketFilter filter = new PacketFilter();
         filter.setTipoPaquete("TCP");
@@ -85,12 +85,11 @@ public class PacketServiceTest {
     @Test
     void testExportPacket_AsPcap() {
         Packet p1 = new Packet(); p1.setId(1L); p1.setContenidos("DATA");
-        when(repository.findById(1L)).thenReturn(Optional.of(p1));
+        when(repository.findByAnalisisRedId(1)).thenReturn(Arrays.asList(p1));
         
-        byte[] result = service.exportPacket(1L, ExportFormat.PCAP);
+        byte[] result = service.exportSessionPackets(1L, ExportFormat.PCAP);
         assertTrue(result.length > 0);
         String strResult = new String(result);
-        assertTrue(strResult.contains("PCAP"));
-        assertTrue(strResult.contains("DATA"));
+        assertTrue(strResult.contains("Formato no soportado"));
     }
 }

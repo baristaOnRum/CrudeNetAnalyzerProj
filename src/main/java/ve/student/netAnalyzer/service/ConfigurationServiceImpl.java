@@ -140,4 +140,32 @@ public class ConfigurationServiceImpl implements ConfigurationService {
     public DbConnectionDto getPersistentDbConfig() {
         return persistentDbConfig;
     }
+
+    @Override
+    public boolean testDatabaseConnection(DbConnectionDto dbConfig) {
+        String dbType = dbConfig.getDbType();
+        String url = dbConfig.getUrl();
+        if (url == null || url.trim().isEmpty()) {
+            String host = dbConfig.getHost() != null && !dbConfig.getHost().trim().isEmpty() ? dbConfig.getHost() : "127.0.0.1";
+            String port = dbConfig.getPort() != null && !dbConfig.getPort().trim().isEmpty() ? dbConfig.getPort() : "5432";
+            String name = dbConfig.getName() != null && !dbConfig.getName().trim().isEmpty() ? dbConfig.getName() : "netanalyzer_db";
+
+            if ("postgresql".equalsIgnoreCase(dbType)) {
+                url = "jdbc:postgresql://" + host + ":" + port + "/" + name;
+            } else if ("mysql".equalsIgnoreCase(dbType)) {
+                url = "jdbc:mysql://" + host + ":" + port + "/" + name;
+            } else if ("h2".equalsIgnoreCase(dbType)) {
+                url = "jdbc:h2:mem:" + name;
+            } else {
+                url = "jdbc:sqlite:" + name + ".db";
+            }
+        }
+
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, dbConfig.getUsername(), dbConfig.getPassword())) {
+            return conn.isValid(5);
+        } catch (java.sql.SQLException e) {
+            System.err.println("Database test connection failed: " + e.getMessage());
+            return false;
+        }
+    }
 }

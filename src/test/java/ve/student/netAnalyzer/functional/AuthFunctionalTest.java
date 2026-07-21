@@ -10,8 +10,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.springframework.test.context.ActiveProfiles;
+
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 public class AuthFunctionalTest {
 
     @Autowired
@@ -19,6 +22,11 @@ public class AuthFunctionalTest {
 
     @Test
     public void testLogin_Success() throws Exception {
+        String adminJson = "{\"nombre\":\"admin\",\"passHasheada\":\"123456\",\"rol\":\"ADMIN\"}";
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(adminJson));
+                
         String loginJson = "{\"username\":\"admin\",\"password\":\"123456\"}";
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)

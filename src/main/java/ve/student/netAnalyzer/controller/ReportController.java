@@ -8,6 +8,9 @@ import ve.student.netAnalyzer.dto.Report;
 import ve.student.netAnalyzer.dto.ReportCriteria;
 import ve.student.netAnalyzer.dto.Statistics;
 import ve.student.netAnalyzer.service.ReportService;
+import ve.student.netAnalyzer.service.AuditService;
+import ve.student.netAnalyzer.dto.AuditDto;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -16,9 +19,20 @@ public class ReportController {
     @Autowired
     private ReportService reportService;
 
+    @Autowired
+    private AuditService auditService;
+
     @PostMapping("/generate")
     public ResponseEntity<Report> generateReport(@RequestBody ReportCriteria criteria) {
-        return ResponseEntity.ok(reportService.generateReport(criteria));
+        Report report = reportService.generateReport(criteria);
+        
+        AuditDto audit = new AuditDto();
+        audit.setNombreAuditoria("Emisión de Reporte");
+        audit.setDetalleCambio("Se emitió un reporte en formato " + criteria.getReportType());
+        audit.setFechaHora(LocalDateTime.now());
+        auditService.registerAudit(audit);
+        
+        return ResponseEntity.ok(report);
     }
 
     @PostMapping("/statistics")

@@ -36,7 +36,7 @@ public class UserServiceTest {
         UserRegistrationDto dto = new UserRegistrationDto();
         dto.setNombre("nuevoUser");
         dto.setPassHasheada("pass123");
-        dto.setRol("USER");
+        dto.setRol("ANALYST");
 
         when(repository.findByNombre("nuevoUser")).thenReturn(Optional.empty());
         when(repository.save(any(AppUser.class))).thenAnswer(i -> {
@@ -68,7 +68,7 @@ public class UserServiceTest {
 
     @Test
     void testModifyUser_UpdatesFields() {
-        AppUser user = new AppUser("user1", "pass", AppRole.USER);
+        AppUser user = new AppUser("user1", "pass", AppRole.ANALYST);
         user.setId(1L);
 
         when(repository.findById(1L)).thenReturn(Optional.of(user));
