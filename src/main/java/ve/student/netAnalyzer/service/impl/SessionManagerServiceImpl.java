@@ -9,6 +9,7 @@ import ve.student.netAnalyzer.service.SessionManagerService;
 public class SessionManagerServiceImpl implements SessionManagerService {
 
     private AppUser activeUser;
+    private String userSessionId;
     private AnalisisRed activeAnalysis;
     private ve.student.netAnalyzer.dto.InterfaceDto activeInterface;
 
@@ -25,6 +26,22 @@ public class SessionManagerServiceImpl implements SessionManagerService {
     @Override
     public void clearActiveUser() {
         this.activeUser = null;
+        this.userSessionId = null;
+    }
+
+    @Override
+    public void setUserSessionId(String sessionId) {
+        this.userSessionId = sessionId;
+    }
+
+    @Override
+    public String getUserSessionId() {
+        return this.userSessionId;
+    }
+
+    @Override
+    public void clearUserSessionId() {
+        this.userSessionId = null;
     }
 
     @Override

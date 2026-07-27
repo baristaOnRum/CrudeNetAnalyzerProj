@@ -66,29 +66,20 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
             response.setTtl(ttl);
             response.setRawOutput(output.toString().trim());
 
-            PacketDto packet = new PacketDto();
-            packet.setTipoPaquete("ICMP");
-            packet.setFuente("Local");
-            packet.setDestino(ip);
-            packet.setContenidos("ICMP Echo Request (32 bytes)");
-            if (response.isSuccess()) {
-                packet.setRespuesta("Echo Reply (TTL=" + ttl + ")");
-                packet.setTiempoRespuesta(latency);
-            } else {
-                packet.setRespuesta(null);
-                packet.setTiempoRespuesta(null);
-            }
-            packetService.registerPacket(packet);
-
             AnalisisRed analisis = sessionManagerService.getActiveAnalysis();
             DiagnosticPacket dp = new DiagnosticPacket();
             dp.setComponente("PING");
-            dp.setTipoPaquete(packet.getTipoPaquete());
-            dp.setFuente(packet.getFuente());
-            dp.setDestino(packet.getDestino());
-            dp.setContenidos(packet.getContenidos());
-            dp.setRespuesta(packet.getRespuesta());
-            dp.setTiempoRespuesta(packet.getTiempoRespuesta());
+            dp.setTipoPaquete("ICMP");
+            dp.setFuente("Local");
+            dp.setDestino(ip);
+            dp.setContenidos("ICMP Echo Request (32 bytes)");
+            if (response.isSuccess()) {
+                dp.setRespuesta("Echo Reply (TTL=" + ttl + ")");
+                dp.setTiempoRespuesta(latency);
+            } else {
+                dp.setRespuesta(null);
+                dp.setTiempoRespuesta(null);
+            }
             dp.setTimestamp(LocalDateTime.now());
             dp.setAnalisisRed(analisis);
             diagnosticPacketRepository.save(dp);
@@ -126,8 +117,7 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
             Pattern linePattern   = Pattern.compile("^\\s*(\\d+)\\b(.*)$");
             Pattern timeoutPattern = Pattern.compile("(?:timed out|agotado|\\* +\\* +\\*)", Pattern.CASE_INSENSITIVE);
             Pattern msPattern     = Pattern.compile("(\\d+|<1)\\s*ms");
-            Pattern ipPattern     = Pattern.compile("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
-
+            Pattern ipPattern     = Pattern.compile("(\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b|\\b(?:[a-fA-F0-9]{1,4}:){1,7}[a-fA-F0-9]{1,4}\\b|::1)");
             String line;
             while ((line = reader.readLine()) != null) {
                 Matcher lineMatcher = linePattern.matcher(line);
@@ -162,17 +152,9 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
                 }
                 if (ip == null) ip = "*";
 
-                hops.add(new TraceHopDto(hopNum, ip, ip, latency, false));
+                String hopLabel = (hopNum == 1) ? "Router Local / Pasarela" : (ip.equalsIgnoreCase(target) ? "Destino Final Alcanzado" : "Router / Salto Intermedio");
 
-                // Guardar en ambas tablas
-                PacketDto packet = new PacketDto();
-                packet.setTipoPaquete("ICMP");
-                packet.setFuente("Local");
-                packet.setDestino(ip);
-                packet.setContenidos("TRACE_HOP_" + hopNum);
-                packet.setRespuesta("TTL_EXCEEDED");
-                packet.setTiempoRespuesta(latency);
-                packetService.registerPacket(packet);
+                hops.add(new TraceHopDto(hopNum, ip, hopLabel, latency, false));
 
                 AnalisisRed analisis = sessionManagerService.getActiveAnalysis();
                 DiagnosticPacket dp = new DiagnosticPacket();
@@ -181,7 +163,7 @@ public class DiagnosticsServiceImpl implements DiagnosticsService {
                 dp.setFuente("Local");
                 dp.setDestino(ip);
                 dp.setContenidos("TRACE_HOP_" + hopNum);
-                dp.setRespuesta("TTL_EXCEEDED");
+                dp.setRespuesta(hopLabel);
                 dp.setTiempoRespuesta(latency);
                 dp.setTimestamp(LocalDateTime.now());
                 dp.setAnalisisRed(analisis);

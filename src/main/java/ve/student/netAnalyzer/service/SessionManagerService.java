@@ -10,6 +10,10 @@ public interface SessionManagerService {
     AppUser getActiveUser();
     void clearActiveUser();
 
+    void setUserSessionId(String sessionId);
+    String getUserSessionId();
+    void clearUserSessionId();
+
     // Analysis Session
     void setActiveAnalysis(AnalisisRed analysis);
     AnalisisRed getActiveAnalysis();

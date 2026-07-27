@@ -80,7 +80,7 @@ public class ActiveAnalysisService {
             analysisId = (long) sessionManagerService.getActiveAnalysis().getId();
         }
 
-        // 1. Resolver TODAS las IPs del host objetivo (IPv4 e IPv6) para el filtro BPF completo
+        // 1. Filtro BPF para la captura del análisis activo (puertos HTTP/HTTPS y resolución de host)
         String targetHost = provider.getTargetHost();
         StringBuilder bpfBuilder = new StringBuilder();
         try {
@@ -91,12 +91,16 @@ public class ActiveAnalysisService {
                 }
                 bpfBuilder.append("host ").append(addr.getHostAddress());
             }
-            logger.info("Filtro BPF generado para {}: {}", targetHost, bpfBuilder);
+            if (bpfBuilder.length() > 0) {
+                bpfBuilder.append(" or ");
+            }
+            bpfBuilder.append("tcp port 443 or tcp port 80");
         } catch (Exception e) {
-            logger.warn("No se pudieron resolver las IPs para {}, se usará filtro genérico TCP", targetHost);
+            bpfBuilder.append("tcp port 443 or tcp port 80");
         }
 
-        String captureFilter = bpfBuilder.length() > 0 ? bpfBuilder.toString() : "tcp port 443 or tcp port 80";
+        String captureFilter = bpfBuilder.toString();
+        logger.info("Filtro BPF aplicado para el análisis activo {}: {}", targetHost, captureFilter);
 
         // 2. Iniciar captura Tshark con el filtro BPF amplio
         packetCaptureService.startCaptureWithFilter(
@@ -117,15 +121,15 @@ public class ActiveAnalysisService {
         }
 
         // 3. Pausa para asegurar que Tshark esté escuchando antes del tráfico HTTP
-        Thread.sleep(1000);
+        Thread.sleep(1500);
 
         // 4. Ejecutar la prueba HTTP
         ActiveAnalysisResult result;
         try {
             result = provider.runTest(request);
         } finally {
-            // 5. Breve pausa para capturar paquetes de cierre (FIN/ACK) antes de matar Tshark
-            Thread.sleep(1000);
+            // 5. Breve pausa para capturar paquetes de cierre (FIN/ACK) antes de detener Tshark
+            Thread.sleep(2000);
             packetCaptureService.stopCapture();
         }
 

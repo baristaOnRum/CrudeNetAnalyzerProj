@@ -28,10 +28,25 @@ public class AuditServiceImpl implements AuditService {
     @Override
     public Audit registerAudit(AuditDto auditData) {
         Audit audit = new Audit();
-        audit.setIdSesion(auditData.getIdSesion());
+        
+        String sessId = auditData.getIdSesion();
+        if (sessId == null || sessId.trim().isEmpty()) {
+            sessId = sessionManagerService.getUserSessionId();
+        }
+        if (sessId == null || sessId.trim().isEmpty()) {
+            sessId = "SES-SYSTEM";
+        }
+        
+        // Strip any previous hash suffix if re-passing, then append unique PK suffix
+        if (sessId.contains("#")) {
+            sessId = sessId.split("#")[0];
+        }
+        String uniqueAuditPk = sessId + "#" + java.util.UUID.randomUUID().toString();
+        
+        audit.setIdSesion(uniqueAuditPk);
         audit.setNombreAuditoria(auditData.getNombreAuditoria());
         audit.setDetalleCambio(auditData.getDetalleCambio());
-        audit.setFechaHora(auditData.getFechaHora());
+        audit.setFechaHora(auditData.getFechaHora() != null ? auditData.getFechaHora() : java.time.LocalDateTime.now());
         
         if (auditData.getIdUsuario() != null) {
             AppUser user = userRepository.findById(auditData.getIdUsuario()).orElse(null);

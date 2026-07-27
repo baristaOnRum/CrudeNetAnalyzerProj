@@ -27,8 +27,8 @@ public class AuthController {
             AuthToken token = authService.login(credentials);
             
             AuditDto audit = new AuditDto();
-            audit.setNombreAuditoria("Inicio de Sesión");
-            audit.setDetalleCambio("Usuario " + credentials.getUsername() + " inició sesión exitosamente.");
+            audit.setNombreAuditoria("Inicio de Sesión de Usuario");
+            audit.setDetalleCambio("El usuario '" + credentials.getUsername() + "' ha ingresado exitosamente al sistema.");
             audit.setFechaHora(LocalDateTime.now());
             auditService.registerAudit(audit);
             
@@ -50,8 +50,8 @@ public class AuthController {
             AuthToken token = authService.loginAsGuest();
             
             AuditDto audit = new AuditDto();
-            audit.setNombreAuditoria("Inicio de Sesión Invitado");
-            audit.setDetalleCambio("Un usuario accedió al sistema en modalidad de Invitado.");
+            audit.setNombreAuditoria("Acceso de Usuario Invitado");
+            audit.setDetalleCambio("Un usuario ingresó al sistema con perfil de Observador (Invitado).");
             audit.setFechaHora(LocalDateTime.now());
             auditService.registerAudit(audit);
             

@@ -16,16 +16,16 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
   const [operators, setOperators] = useState<Operator[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Operator | null>(null);
-  const [editingUser, setEditingUser] = useState<Operator | null>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
 
   // Form states
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<'ADMIN' | 'ANALYST' | 'VIEWER'>('ANALYST');
+  const [newRole, setNewRole] = useState<'ADMINISTRADOR' | 'ANALISTA' | 'OBSERVADOR'>('ANALISTA');
   const [newPassword, setNewPassword] = useState('');
 
   // Edit states
   const [editName, setEditName] = useState('');
-  const [editRole, setEditRole] = useState<'ADMIN' | 'ANALYST' | 'VIEWER'>('ANALYST');
+  const [editRole, setEditRole] = useState<'ADMINISTRADOR' | 'ANALISTA' | 'OBSERVADOR'>('ANALISTA');
 
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -128,7 +128,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
       setShowAddModal(false);
       setNewName('');
       setNewPassword('');
-      setNewRole('ANALYST');
+      setNewRole('ANALISTA');
       fetchUsers();
       Swal.fire({ title: 'Usuario Creado', text: 'Nuevo perfil registrado.', icon: 'success', confirmButtonColor: '#4F46E5' });
     } catch (e) {
@@ -142,17 +142,24 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
       text: `¿Está seguro de que desea eliminar al operador "${name}" del acceso al sistema?`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#4F46E5',
-      cancelButtonColor: '#d33',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar'
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await fetch(`/api/users/${id}`, { method: 'DELETE' });
-          fetchUsers();
+          const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            Swal.fire({ title: 'Usuario Eliminado', text: `El operador "${name}" ha sido eliminado exitosamente.`, icon: 'success', confirmButtonColor: '#4F46E5' });
+            fetchUsers(currentPage);
+          } else {
+            const errText = await res.text();
+            Swal.fire({ title: 'No se pudo eliminar', text: errText || 'El usuario no pudo ser eliminado.', icon: 'error', confirmButtonColor: '#4F46E5' });
+          }
         } catch (e) {
           console.error(e);
+          Swal.fire({ title: 'Error de Red', text: 'No se pudo procesar la solicitud de eliminación.', icon: 'error', confirmButtonColor: '#4F46E5' });
         }
       }
     });
@@ -161,7 +168,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
   return (
     <div className="space-y-6 font-sans mt-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 select-none">
-        <h3 className="font-bold text-lg text-slate-900">Gestión de Cuentas y Operadores</h3>
+        <h3 className="font-bold text-lg text-slate-900">Gestión de Cuentas</h3>
         {currentUserRole.toUpperCase().includes('ADMINISTRADOR') && (
           <button
             onClick={() => setShowAddModal(true)}
@@ -175,13 +182,13 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
 
       <div className="bg-white border border-[#cbd5e1] rounded-2xl overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-100 bg-[#f8f9ff] flex flex-col md:flex-row justify-between items-center gap-4 select-none">
-          <h2 className="font-sans font-bold text-[#191c1e] text-base">Directorio de Operadores</h2>
+          <h2 className="font-sans font-bold text-[#191c1e] text-base">Listado de Usuarios</h2>
           <div className="flex items-center gap-2">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
               <input 
                 type="text" 
-                placeholder="Buscar (fuzzy)..." 
+                placeholder="Buscar..." 
                 value={fuzzySearch}
                 onChange={(e) => setFuzzySearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && fetchUsers(0, fuzzySearch)}
@@ -199,38 +206,38 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-[#eff4ff]/60 border-b border-[#cbd5e1] select-none text-[10px] font-mono tracking-wider font-bold text-slate-500 uppercase">
-                <th className="px-6 py-3.5 pl-6">Nombre del Operador</th>
-                <th className="px-6 py-3.5">Rol</th>
-                <th className="px-6 py-3.5 text-right pr-6">Acciones</th>
+                <th className="px-6 py-3.5 pl-6 w-1/2">Nombre</th>
+                <th className="px-6 py-3.5 w-1/4">Rol</th>
+                <th className="px-6 py-3.5 text-right pr-6 w-1/4">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans text-sm font-semibold text-[#191c1e] bg-white">
               {operators.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="p-8 text-center text-slate-400 italic">
-                    No se encontraron operadores
+                    No se encontraron usuarios
                   </td>
                 </tr>
               ) : (
                 operators.map((op: any) => (
                   <tr key={op.id} className="hover:bg-[#f0f4fa]/40 transition-colors group">
-                    <td className="px-6 py-4 font-sans pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-primary-container text-primary flex items-center justify-center font-bold text-[11px] border border-primary/10 select-none">
+                    <td className="px-6 py-4 font-sans pl-6 max-w-0 overflow-hidden">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-9 h-9 rounded-xl bg-primary-container text-primary flex items-center justify-center font-bold text-[11px] border border-primary/10 select-none shrink-0">
                           {op.avatarInitials}
                         </div>
-                        <div>
-                          <div className="font-sans font-bold text-slate-900 leading-tight">
+                        <div className="truncate max-w-full" title={op.name}>
+                          <div className="font-sans font-bold text-slate-900 leading-tight truncate">
                             {op.name}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-extrabold tracking-wider bg-slate-100 text-slate-600 border border-slate-200`}>
+                    <td className="px-6 py-4 truncate max-w-0" title={op.role}>
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-extrabold tracking-wider bg-slate-100 text-slate-600 border border-slate-200 inline-block truncate`}>
                         {op.role}
                       </span>
                     </td>
@@ -267,7 +274,26 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
         
         {totalPages > 1 && (
           <div className="px-6 py-3 border-t border-slate-100 bg-[#f8f9ff] flex justify-between items-center select-none">
-            <span className="text-xs font-bold text-slate-500">Página {currentPage + 1} de {totalPages}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500">Página</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={currentPage + 1}
+                onChange={(e) => {
+                  let p = parseInt(e.target.value, 10);
+                  if (isNaN(p)) return;
+                  if (p < 1) p = 1;
+                  if (p > totalPages) p = totalPages;
+                  fetchUsers(p - 1);
+                }}
+                className="w-16 px-2 py-1 border border-slate-300 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-xs font-bold text-slate-500">
+                de {totalPages}
+              </span>
+            </div>
             <div className="flex gap-2">
               <button 
                 disabled={currentPage === 0} 
@@ -349,9 +375,9 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
                 onChange={(e) => setEditRole(e.target.value as any)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none"
               >
-                <option value="ADMIN">Administrador</option>
-                <option value="ANALYST">Analista</option>
-                <option value="VIEWER">Observador</option>
+                <option value="ADMINISTRADOR">Administrador</option>
+                <option value="ANALISTA">Analista</option>
+                <option value="OBSERVADOR">Observador</option>
               </select>
             </div>
 
@@ -419,9 +445,9 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
                 onChange={(e) => setNewRole(e.target.value as any)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none"
               >
-                <option value="ADMIN">Administrador</option>
-                <option value="ANALYST">Analista</option>
-                <option value="VIEWER">Observador</option>
+                <option value="ADMINISTRADOR">Administrador</option>
+                <option value="ANALISTA">Analista</option>
+                <option value="OBSERVADOR">Observador</option>
               </select>
             </div>
 

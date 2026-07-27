@@ -143,7 +143,10 @@ export const Modal: React.FC<ModalProps> = ({
                       {field.value}
                     </div>
                   ) : (
-                    <div className="bg-slate-50 border border-slate-200 text-slate-800 font-semibold px-3 py-2 rounded-xl text-xs">
+                    <div
+                      className="bg-slate-50 border border-slate-200 text-slate-800 font-semibold px-3 py-2 rounded-xl text-xs truncate"
+                      title={typeof field.value === 'string' ? field.value : undefined}
+                    >
                       {field.value}
                     </div>
                   )}

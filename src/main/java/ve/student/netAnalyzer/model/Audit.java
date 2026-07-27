@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
@@ -12,7 +13,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class Audit {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id_sesion", nullable = false)
     private String idSesion;
 
@@ -22,6 +22,7 @@ public class Audit {
     @Column(name = "detalle_cambio", columnDefinition = "TEXT")
     private String detalleCambio;
 
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss", shape = JsonFormat.Shape.STRING)
     @Column(name = "fecha_hora")
     private LocalDateTime fechaHora;
 

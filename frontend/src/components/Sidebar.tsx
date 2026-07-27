@@ -4,7 +4,10 @@
  */
 
 import React from 'react';
+import Swal from 'sweetalert2';
 import { AppView } from '../types';
+
+import logoImg from '../assets/Picture1.png';
 
 interface SidebarProps {
   currentView: AppView;
@@ -12,8 +15,6 @@ interface SidebarProps {
   userName: string;
   userRole: string;
   onLogout: () => void;
-  activeAnalysisId: number | null;
-  isMonitoring: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -21,25 +22,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onViewChange,
   userName,
   userRole,
-  onLogout,
-  activeAnalysisId,
-  isMonitoring
+  onLogout
 }) => {
   return (
     <aside className="fixed left-0 top-0 h-full z-40 flex flex-col bg-white border-r border-[#E2E8F0] w-64 select-none font-sans">
       {/* Brand Header */}
-      <div className="p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-primary font-sans flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-xl">router</span>
-          </h1>
-          {activeAnalysisId && (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-widest uppercase ${isMonitoring ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isMonitoring ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></span>
-              S-{activeAnalysisId} {isMonitoring && 'REC'}
-            </div>
-          )}
-        </div>
+      <div className="p-6 flex items-center justify-center border-b border-[#F1F5F9]">
+        <img src={logoImg} alt="NetAnalyzer Logo" className="h-14 w-auto object-contain mx-auto max-w-full" />
       </div>
 
       {/* Navigation items list */}
@@ -69,52 +58,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         {/* Ver Registros */}
-        <button
-          onClick={() => onViewChange('audits')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'audits'
-              ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
-              : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-            }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-          <span className="text-sm">Auditorías</span>
-        </button>
+        {userRole === 'ADMINISTRADOR' && (
+          <button
+            onClick={() => onViewChange('audits')}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'audits'
+                ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
+                : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+            <span className="text-sm">Auditorías</span>
+          </button>
+        )}
 
         {/* Gestionar Usuarios */}
-        <button
-          onClick={() => onViewChange('users')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'users'
-              ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
-              : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-            }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">group</span>
-          <span className="text-sm">Gestionar Usuarios</span>
-        </button>
+        {userRole === 'ADMINISTRADOR' && (
+          <button
+            onClick={() => onViewChange('users')}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'users'
+                ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
+                : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">group</span>
+            <span className="text-sm">Gestionar Usuarios</span>
+          </button>
+        )}
 
         {/* Administrar Paquetes */}
-        <button
-          onClick={() => onViewChange('packets')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'packets'
-              ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
-              : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-            }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">inventory_2</span>
-          <span className="text-sm">Administrar Paquetes</span>
-        </button>
+        {(userRole === 'ADMINISTRADOR' || userRole === 'ANALISTA') && (
+          <button
+            onClick={() => onViewChange('packets')}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'packets'
+                ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
+                : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+            <span className="text-sm">Administrar Paquetes</span>
+          </button>
+        )}
 
         {/* Settings */}
-        <button
-          onClick={() => onViewChange('settings')}
-          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'settings'
-              ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
-              : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
-            }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">settings</span>
-          <span className="text-sm">Configuración</span>
-        </button>
+        {(userRole === 'ADMINISTRADOR' || userRole === 'ANALISTA') && (
+          <button
+            onClick={() => onViewChange('settings')}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-150 cursor-pointer ${currentView === 'settings'
+                ? 'bg-[#F1F5F9] text-[#0F172A] font-semibold'
+                : 'text-[#64748B] hover:bg-[#F1F5F9]/50 hover:text-[#0F172A]'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">settings</span>
+            <span className="text-sm">Configuración</span>
+          </button>
+        )}
       </nav>
 
       {/* User profile section bottom layout */}
@@ -131,9 +128,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <button
             onClick={() => {
-              if (window.confirm("¿Está seguro de que desea cerrar la sesión y cerrar la conexión?")) {
-                onLogout();
-              }
+              Swal.fire({
+                title: '¿Cerrar sesión?',
+                text: '¿Está seguro de que desea cerrar la sesión y cerrar la conexión?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4F46E5',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, salir',
+                cancelButtonText: 'Cancelar'
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  onLogout();
+                }
+              });
             }}
             title="Desconectar conexión"
             className="p-1 hover:text-[#4F46E5] rounded-md transition-colors cursor-pointer text-[#64748B]"

@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -207,9 +208,24 @@ public class ReportServiceImpl implements ReportService {
             Integer d = packets.get(0).getAnalisisRed().getDuracionAnalisis();
             if (d != null && d > 0) durationSeconds = d;
         }
-        
-        double downloadRate = totalBytes / durationSeconds;
-        double packetRate = total / durationSeconds;
+
+        // Calcular la tasa de rendimiento pico (Burst Rate) agrupada por segundo
+        Map<Long, Long> bytesPerSecondBucket = new HashMap<>();
+        for (Packet p : packets) {
+            if (p.getTimestamp() != null) {
+                long secBucket = p.getTimestamp().atZone(java.time.ZoneId.systemDefault()).toEpochSecond();
+                long len = p.getLongitud() != null ? p.getLongitud() : (p.getContenidos() != null ? p.getContenidos().getBytes().length : 64);
+                bytesPerSecondBucket.merge(secBucket, len, Long::sum);
+            }
+        }
+        long maxBytesPerSec = bytesPerSecondBucket.values().stream().mapToLong(Long::longValue).max().orElse(0L);
+
+        // Tasa Sostenida (promedio global de la sesión en B/s)
+        double sustainedDownloadRate = totalBytes / Math.max(1.0, durationSeconds);
+
+        // Tasa Pico (Rendimiento máximo por segundo en B/s)
+        double downloadRate = maxBytesPerSec > 0 ? (double) maxBytesPerSec : sustainedDownloadRate;
+        double packetRate = total / Math.max(1.0, durationSeconds);
                 
         List<Integer> allLatencies = new ArrayList<>();
         for (Packet p : packets) {
@@ -237,6 +253,7 @@ public class ReportServiceImpl implements ReportService {
         double criticalLatency = 150.0;
         double criticalJitter = 30.0;
         double criticalErrorRate = 5.0; // Default 5%
+        double minSustainedRateKbps = 100.0; // Default 100 KB/s
         try {
             String latStr = configurationService.getParameter("CRITICAL_LATENCY_MS").getValorSeleccionado();
             if (latStr != null && !latStr.isEmpty()) criticalLatency = Double.parseDouble(latStr);
@@ -246,6 +263,9 @@ public class ReportServiceImpl implements ReportService {
 
             String errStr = configurationService.getParameter("CRITICAL_ERROR_RATE").getValorSeleccionado();
             if (errStr != null && !errStr.isEmpty()) criticalErrorRate = Double.parseDouble(errStr);
+
+            String rateStr = configurationService.getParameter("MIN_SUSTAINED_DOWNLOAD_RATE_KBPS").getValorSeleccionado();
+            if (rateStr != null && !rateStr.isEmpty()) minSustainedRateKbps = Double.parseDouble(rateStr);
         } catch(Exception e) {}
 
         long totalErrors = errorCounts.values().stream().mapToLong(Long::longValue).sum();
@@ -264,8 +284,10 @@ public class ReportServiceImpl implements ReportService {
             double penalty = ((errorRate - criticalErrorRate) / criticalErrorRate) * 30.0;
             networkScore -= Math.min(penalty, 30.0);
         }
-        if (downloadRate < 1000 && total > 100) {
-            networkScore -= 10.0;
+        double sustainedKbps = sustainedDownloadRate / 1024.0;
+        if (sustainedKbps < minSustainedRateKbps && total > 100) {
+            double penalty = ((minSustainedRateKbps - sustainedKbps) / minSustainedRateKbps) * 10.0;
+            networkScore -= Math.min(penalty, 10.0);
         }
         if (networkScore < 0) networkScore = 0;
         
@@ -276,6 +298,7 @@ public class ReportServiceImpl implements ReportService {
 
         Statistics stats = new Statistics(total, avgSize, topProtocol, protocolDistribution, topSourceIps, topDestIps,
                               averageJitter, downloadRate, packetRate, jitter90, size90, errorRate);
+        stats.setSustainedDownloadRate(sustainedDownloadRate);
         stats.setErrorDistribution(errorDistribution);
         stats.setNetworkScore(networkScore);
         
@@ -304,7 +327,29 @@ public class ReportServiceImpl implements ReportService {
     }
     
     private LocalDateTime parseDate(String dateStr, boolean isStart) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return isStart ? LocalDateTime.now().minusYears(10) : LocalDateTime.now().plusYears(10);
+        }
+        dateStr = dateStr.trim();
         try {
+            if (dateStr.contains("/")) {
+                String[] parts = dateStr.split(" ");
+                String[] dParts = parts[0].split("/");
+                if (dParts.length == 3) {
+                    int day = Integer.parseInt(dParts[0]);
+                    int month = Integer.parseInt(dParts[1]);
+                    int year = Integer.parseInt(dParts[2]);
+                    if (parts.length > 1 && parts[1].contains(":")) {
+                        String[] tParts = parts[1].split(":");
+                        int hour = Integer.parseInt(tParts[0]);
+                        int min = Integer.parseInt(tParts[1]);
+                        int sec = tParts.length > 2 ? Integer.parseInt(tParts[2]) : 0;
+                        return java.time.LocalDateTime.of(year, month, day, hour, min, sec);
+                    }
+                    java.time.LocalDate ld = java.time.LocalDate.of(year, month, day);
+                    return isStart ? ld.atStartOfDay() : ld.atTime(23, 59, 59);
+                }
+            }
             if (dateStr.contains("T")) {
                 return LocalDateTime.parse(dateStr);
             }

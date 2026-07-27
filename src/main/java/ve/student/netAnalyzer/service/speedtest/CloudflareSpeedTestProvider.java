@@ -104,7 +104,6 @@ public class CloudflareSpeedTestProvider implements SpeedTestProvider {
         String urlStr = "https://" + TARGET_HOST + "/__up";
         logger.info("Cloudflare UPLOAD: {} bytes -> {}", sizeBytes, urlStr);
 
-        // Generamos un buffer de ceros como payload de subida
         byte[] payload = new byte[(int) Math.min(sizeBytes, 25_000_000L)];
         Arrays.fill(payload, (byte) 0x00);
 
@@ -112,15 +111,21 @@ public class CloudflareSpeedTestProvider implements SpeedTestProvider {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
+        conn.setFixedLengthStreamingMode(payload.length);
         conn.setRequestProperty("Content-Type", "application/octet-stream");
-        conn.setRequestProperty("Content-Length", String.valueOf(payload.length));
         conn.setRequestProperty("User-Agent", "NetAnalyzer/1.0");
         conn.setConnectTimeout(TIMEOUT_MS);
         conn.setReadTimeout(TIMEOUT_MS);
 
         long start = System.currentTimeMillis();
         try (OutputStream os = conn.getOutputStream()) {
-            os.write(payload);
+            int chunkSize = 65536;
+            int offset = 0;
+            while (offset < payload.length) {
+                int len = Math.min(chunkSize, payload.length - offset);
+                os.write(payload, offset, len);
+                offset += len;
+            }
             os.flush();
         }
         result.setHttpStatus(conn.getResponseCode());

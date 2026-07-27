@@ -14,15 +14,22 @@ public class PacketSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (criteria.getTerm() != null && !criteria.getTerm().isEmpty()) {
-                String likeTerm = "%" + criteria.getTerm().toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("tipoPaquete")), likeTerm),
-                        cb.like(cb.lower(root.get("fuente")), likeTerm),
-                        cb.like(cb.lower(root.get("destino")), likeTerm),
-                        cb.like(cb.lower(root.get("contenidos")), likeTerm),
-                        cb.like(cb.lower(root.get("respuesta")), likeTerm)
-                ));
+            if (criteria.getTerm() != null && !criteria.getTerm().trim().isEmpty()) {
+                String rawTerm = criteria.getTerm().trim().toLowerCase().replace("pkt-", "").replace("#", "");
+                String likeTerm = "%" + rawTerm + "%";
+                List<Predicate> termPredicates = new ArrayList<>();
+
+                try {
+                    termPredicates.add(cb.equal(root.get("id"), Integer.parseInt(rawTerm)));
+                } catch (NumberFormatException ignored) {}
+
+                termPredicates.add(cb.like(cb.lower(root.get("tipoPaquete")), likeTerm));
+                termPredicates.add(cb.like(cb.lower(root.get("fuente")), likeTerm));
+                termPredicates.add(cb.like(cb.lower(root.get("destino")), likeTerm));
+                termPredicates.add(cb.like(cb.lower(root.get("contenidos")), likeTerm));
+                termPredicates.add(cb.like(cb.lower(root.get("respuesta")), likeTerm));
+
+                predicates.add(cb.or(termPredicates.toArray(new Predicate[0])));
             }
 
             if (criteria.getStartDate() != null) {
@@ -48,6 +55,10 @@ public class PacketSpecification {
 
             if (criteria.getAnalysisId() != null) {
                 predicates.add(cb.equal(root.get("analisisRed").get("id"), criteria.getAnalysisId()));
+            }
+
+            if (criteria.getType() != null && !criteria.getType().isEmpty()) {
+                predicates.add(cb.equal(root.get("tipoPaquete"), criteria.getType()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

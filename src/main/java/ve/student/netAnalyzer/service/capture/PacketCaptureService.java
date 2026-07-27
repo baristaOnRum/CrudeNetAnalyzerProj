@@ -23,7 +23,7 @@ public class PacketCaptureService {
 
     private static final Logger logger = LoggerFactory.getLogger(PacketCaptureService.class);
 
-    @Value("${capture.tshark.path:./tshark-portable/tshark}")
+    @Value("${capture.tshark.path:./tshark-portable/App/Wireshark/tshark}")
     private String tsharkPath;
 
     private Process captureProcess;
@@ -32,12 +32,14 @@ public class PacketCaptureService {
     private final PacketRepository packetRepository;
     private final AnalisisRedRepository analisisRedRepository;
     private final ve.student.netAnalyzer.service.SessionManagerService sessionManagerService;
+    private final ve.student.netAnalyzer.service.DnsResolutionService dnsResolutionService;
 
     @Autowired
-    public PacketCaptureService(PacketRepository packetRepository, AnalisisRedRepository analisisRedRepository, ve.student.netAnalyzer.service.SessionManagerService sessionManagerService) {
+    public PacketCaptureService(PacketRepository packetRepository, AnalisisRedRepository analisisRedRepository, ve.student.netAnalyzer.service.SessionManagerService sessionManagerService, ve.student.netAnalyzer.service.DnsResolutionService dnsResolutionService) {
         this.packetRepository = packetRepository;
         this.analisisRedRepository = analisisRedRepository;
         this.sessionManagerService = sessionManagerService;
+        this.dnsResolutionService = dnsResolutionService;
     }
 
     @PostConstruct
@@ -81,9 +83,15 @@ public class PacketCaptureService {
             executable += ".exe";
         }
 
+        String tsharkIface = interfaceName;
+        if (interfaceName != null && interfaceName.matches("^\\d+\\.\\s+.*")) {
+            tsharkIface = interfaceName.substring(0, interfaceName.indexOf('.'));
+        }
+
         java.util.List<String> command = new java.util.ArrayList<>(java.util.Arrays.asList(
                 executable,
-                "-i", interfaceName,
+                "-n",
+                "-i", tsharkIface,
                 "-T", "fields",
                 "-e", "_ws.col.Source",
                 "-e", "_ws.col.Destination",
@@ -96,6 +104,11 @@ public class PacketCaptureService {
                 "-e", "dns.time",
                 "-e", "http.time",
                 "-e", "frame.protocols",
+                "-e", "tcp.srcport",
+                "-e", "tcp.dstport",
+                "-e", "udp.srcport",
+                "-e", "udp.dstport",
+                "-e", "tls.handshake.extensions_server_name",
                 "-E", "separator=|",
                 "-l"
         ));
@@ -142,6 +155,26 @@ public class PacketCaptureService {
                             String lenStr = parts[3];
                             String info = parts[4];
                             
+                            // Parse ports and SNI (indices 11 to 15)
+                            String tcpSrc = parts.length > 11 ? parts[11] : "";
+                            String tcpDst = parts.length > 12 ? parts[12] : "";
+                            String udpSrc = parts.length > 13 ? parts[13] : "";
+                            String udpDst = parts.length > 14 ? parts[14] : "";
+                            String sni = parts.length > 15 ? parts[15] : "";
+                            
+                            String srcPort = tcpSrc.isEmpty() ? udpSrc : tcpSrc;
+                            String dstPort = tcpDst.isEmpty() ? udpDst : tcpDst;
+                            
+                            // Use SNI for destination domain if available
+                            if (sni != null && !sni.isBlank()) {
+                                if (sni.contains(",")) sni = sni.split(",")[0]; // Multiple SNIs could appear
+                                dnsResolutionService.forceCacheResolution(dstIp, sni);
+                                dstIp = sni;
+                            } else {
+                                dstIp = dnsResolutionService.resolveIp(dstIp);
+                            }
+                            srcIp = dnsResolutionService.resolveIp(srcIp);
+                            
                             Packet p = new Packet();
                             p.setFuente(srcIp != null && !srcIp.isEmpty() ? srcIp : "N/A");
                             p.setDestino(dstIp != null && !dstIp.isEmpty() ? dstIp : "N/A");
@@ -171,8 +204,22 @@ public class PacketCaptureService {
                             
                             String frameProtocols = parts.length > 10 ? parts[10] : "Desconocido";
                             
+                            // Service Profiling
+                            String serviceProfile = "General";
+                            if (proto.toUpperCase().contains("HTTP") || proto.toUpperCase().contains("TLS") || dstPort.equals("443") || srcPort.equals("443")) {
+                                serviceProfile = "Navegación Web / HTTPS";
+                            } else if (proto.equalsIgnoreCase("QUIC") || proto.equalsIgnoreCase("UDP") && (dstPort.equals("443") || srcPort.equals("443"))) {
+                                serviceProfile = "Streaming / QUIC";
+                            } else if (proto.equalsIgnoreCase("DNS") || dstPort.equals("53") || srcPort.equals("53")) {
+                                serviceProfile = "Resolución DNS";
+                            } else if (proto.equalsIgnoreCase("MDNS") || proto.equalsIgnoreCase("LLMNR") || proto.equalsIgnoreCase("SSDP") || proto.equalsIgnoreCase("IGMP")) {
+                                serviceProfile = "Descubrimiento Local";
+                            } else if (proto.equalsIgnoreCase("ICMP") || proto.equalsIgnoreCase("ICMPV6")) {
+                                serviceProfile = "Diagnóstico ICMP";
+                            }
+                            
                             p.setTiempoRespuesta(responseTimeMs);
-                            p.setRespuesta("Estado: Recibido OK | Encabezado: " + frameProtocols);
+                            p.setRespuesta("[Servicio: " + serviceProfile + "] Estado: OK | Encabezado: " + frameProtocols);
                             p.setTimestamp(java.time.LocalDateTime.now());
 
                             int pktLen = 0;
@@ -190,7 +237,7 @@ public class PacketCaptureService {
                             
                             buffer.add(p);
                             
-                            if (buffer.size() >= 100 || (System.currentTimeMillis() - lastSaveTime) > 1000) {
+                            if (buffer.size() >= 5000 || (System.currentTimeMillis() - lastSaveTime) > 1000) {
                                 if (!buffer.isEmpty()) {
                                     packetRepository.saveAll(buffer);
                                     buffer.clear();
@@ -315,6 +362,16 @@ public class PacketCaptureService {
             while ((line = reader.readLine()) != null) {
                 java.util.Map<String, String> ifaceMap = new java.util.HashMap<>();
                 ifaceMap.put("name", line);
+                
+                String friendlyName = line;
+                int pStart = line.indexOf('(');
+                int pEnd = line.lastIndexOf(')');
+                if (pStart != -1 && pEnd > pStart) {
+                    friendlyName = line.substring(pStart + 1, pEnd).trim();
+                } else {
+                    friendlyName = line.replaceFirst("^\\d+\\.\\s*", "").trim();
+                }
+                ifaceMap.put("displayName", friendlyName);
                 
                 String mac = "00:00:00:00:00:00";
                 

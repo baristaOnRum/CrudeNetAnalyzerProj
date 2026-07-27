@@ -1,16 +1,23 @@
 package ve.student.netAnalyzer.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 
 public class PacketSearchCriteria {
     private String term;
+    
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss", shape = JsonFormat.Shape.STRING)
     private LocalDateTime startDate;
+    
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss", shape = JsonFormat.Shape.STRING)
     private LocalDateTime endDate;
     private Integer minLength;
     private Integer maxLength;
     private Integer minResponseTime;
     private Integer maxResponseTime;
     private Integer analysisId;
+    private String type;
+    private Boolean resolveDns = true;
 
     public String getTerm() { return term; }
     public void setTerm(String term) { this.term = term; }
@@ -35,4 +42,10 @@ public class PacketSearchCriteria {
 
     public Integer getAnalysisId() { return analysisId; }
     public void setAnalysisId(Integer analysisId) { this.analysisId = analysisId; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+
+    public Boolean getResolveDns() { return resolveDns; }
+    public void setResolveDns(Boolean resolveDns) { this.resolveDns = resolveDns; }
 }

@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import ve.student.netAnalyzer.dto.PingRequestDto;
 import ve.student.netAnalyzer.dto.PingResponseDto;
 import ve.student.netAnalyzer.dto.TraceHopDto;
+import ve.student.netAnalyzer.model.DiagnosticPacket;
+import ve.student.netAnalyzer.repository.DiagnosticPacketRepository;
 import ve.student.netAnalyzer.service.DiagnosticsService;
 
 import java.util.List;
@@ -15,9 +17,11 @@ import java.util.List;
 public class DiagnosticsController {
 
     private final DiagnosticsService diagnosticsService;
+    private final DiagnosticPacketRepository diagnosticPacketRepository;
 
-    public DiagnosticsController(DiagnosticsService diagnosticsService) {
+    public DiagnosticsController(DiagnosticsService diagnosticsService, DiagnosticPacketRepository diagnosticPacketRepository) {
         this.diagnosticsService = diagnosticsService;
+        this.diagnosticPacketRepository = diagnosticPacketRepository;
     }
 
     @PostMapping("/ping")
@@ -26,14 +30,14 @@ public class DiagnosticsController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Ejecuta tracert en el servidor (Windows) contra el objetivo dado.
-     * Es síncrono porque tracert puede tardar hasta ~maxHops * 2s = ~60s en el peor caso.
-     * Se recomienda llamar con un timeout largo en el cliente.
-     */
     @PostMapping("/traceroute")
     public ResponseEntity<List<TraceHopDto>> executeTraceroute(@RequestBody PingRequestDto request) {
         List<TraceHopDto> hops = diagnosticsService.executeTraceroute(request.getTarget());
         return ResponseEntity.ok(hops);
+    }
+
+    @GetMapping("/analysis/{analysisId}")
+    public ResponseEntity<List<DiagnosticPacket>> getDiagnosticsByAnalysis(@PathVariable Integer analysisId) {
+        return ResponseEntity.ok(diagnosticPacketRepository.findByAnalisisRedId(analysisId));
     }
 }

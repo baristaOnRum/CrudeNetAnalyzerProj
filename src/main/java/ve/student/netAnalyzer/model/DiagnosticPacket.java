@@ -1,6 +1,7 @@
 package ve.student.netAnalyzer.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,6 +39,7 @@ public class DiagnosticPacket {
     @Column(name = "longitud")
     private Integer longitud;
 
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss", shape = JsonFormat.Shape.STRING)
     @Column(name = "timestamp")
     private java.time.LocalDateTime timestamp;
 

@@ -55,7 +55,7 @@ public class PacketServiceImpl implements PacketService {
     }
 
     public List<Packet> listPacketsByAnalysis(int analysisId, Long sinceId) {
-        return repository.findByAnalisisRedIdAndIdGreaterThan(analysisId, sinceId);
+        return repository.findTop1500ByAnalisisRedIdAndIdGreaterThanOrderByIdAsc(analysisId, sinceId);
     }
 
     @Override

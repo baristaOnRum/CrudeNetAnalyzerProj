@@ -12,8 +12,12 @@ public interface PacketRepository extends JpaRepository<Packet, Long>, JpaSpecif
     List<Packet> findByAnalisisRedFechaEjecucionBetween(LocalDateTime start, LocalDateTime end);
     List<Packet> findByAnalisisRedId(Integer id);
     List<Packet> findByAnalisisRedIdAndIdGreaterThan(Integer id, Long sinceId);
+    List<Packet> findTop1500ByAnalisisRedIdAndIdGreaterThanOrderByIdAsc(Integer id, Long sinceId);
     org.springframework.data.domain.Page<Packet> findByAnalisisRedId(Integer id, org.springframework.data.domain.Pageable pageable);
     List<Packet> findByIdGreaterThan(Long sinceId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT MIN(p.timestamp), MAX(p.timestamp), MIN(p.longitud), MAX(p.longitud), MIN(p.tiempoRespuesta) FROM Packet p")
+    List<Object[]> getGlobalMetadata();
 
     @org.springframework.data.jpa.repository.Query("SELECT COUNT(p), SUM(p.longitud), MIN(p.timestamp), MAX(p.timestamp) FROM Packet p WHERE p.analisisRed.id = :analysisId")
     List<Object[]> getAnalysisSummary(@org.springframework.data.repository.query.Param("analysisId") Integer analysisId);

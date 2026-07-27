@@ -11,9 +11,9 @@ public class Statistics {
     private Map<String, Long> topDestIps;
     private Map<String, Long> errorDistribution;
     
-    // Nuevas estadísticas avanzadas
     private double averageJitter;
-    private double downloadRate;
+    private double downloadRate; // Tasa Pico (Burst Rate)
+    private double sustainedDownloadRate; // Tasa Sostenida (Session Average)
     private double packetRate;
     private double jitterP50;
     private double jitter90thPercentile;
@@ -100,6 +100,9 @@ public class Statistics {
 
     public double getDownloadRate() { return downloadRate; }
     public void setDownloadRate(double downloadRate) { this.downloadRate = downloadRate; }
+
+    public double getSustainedDownloadRate() { return sustainedDownloadRate; }
+    public void setSustainedDownloadRate(double sustainedDownloadRate) { this.sustainedDownloadRate = sustainedDownloadRate; }
 
     public double getPacketRate() { return packetRate; }
     public void setPacketRate(double packetRate) { this.packetRate = packetRate; }

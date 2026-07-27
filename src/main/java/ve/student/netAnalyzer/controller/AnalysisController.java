@@ -76,8 +76,8 @@ public class AnalysisController {
         String interfaceId = payload.get("interfaceId");
         String ip = ipResolutionService.getPublicIp();
         AuditDto audit = new AuditDto();
-        audit.setNombreAuditoria("Ejecución de Análisis Pasivo");
-        audit.setDetalleCambio("Se inició un análisis pasivo en la interfaz: " + interfaceId + ". IP Pública detectada: " + ip);
+        audit.setNombreAuditoria("Captura de Tráfico y Monitoreo Pasivo");
+        audit.setDetalleCambio("Se inició el monitoreo pasivo de red en la interfaz de red " + (interfaceId != null ? interfaceId : "Predeterminada") + ". Dirección IP Pública asignada: " + ip);
         audit.setFechaHora(LocalDateTime.now());
         auditService.registerAudit(audit);
 
@@ -135,8 +135,8 @@ public class AnalysisController {
         try {
             String ip = ipResolutionService.getPublicIp();
             AuditDto audit = new AuditDto();
-            audit.setNombreAuditoria("Ejecución de Análisis Activo");
-            audit.setDetalleCambio("Se inició un análisis activo (proveedor: " + request.getProvider() + ") usando interfaz: " + request.getInterfaceName() + ". IP Pública: " + ip);
+            audit.setNombreAuditoria("Prueba de Rendimiento y Análisis Activo");
+            audit.setDetalleCambio("Se ejecutó un diagnóstico activo de ancho de banda mediante el proveedor de pruebas " + (request.getProvider() != null ? request.getProvider() : "Predeterminado") + " sobre la interfaz de red " + (request.getInterfaceName() != null ? request.getInterfaceName() : "Principal") + ". Dirección IP Pública: " + ip);
             audit.setFechaHora(LocalDateTime.now());
             auditService.registerAudit(audit);
 

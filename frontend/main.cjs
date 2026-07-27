@@ -3,6 +3,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 
+app.commandLine.appendSwitch('lang', 'es-VE');
+
 // Evitar que el proceso main muera por promesas no capturadas
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[Electron Main] Unhandled Promise Rejection:', reason);

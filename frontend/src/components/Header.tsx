@@ -10,16 +10,20 @@ import Swal from 'sweetalert2';
 
 interface HeaderProps {
   currentView: AppView;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  activeAnalysisId?: number | null;
+  isMonitoring?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  currentView
+  currentView,
+  activeAnalysisId,
+  isMonitoring
 }) => {
   const [showSystemInfo, setShowSystemInfo] = useState(false);
 
-  // Derive title based on current screen
+  // ... (keeping existing getHeaderTitle and getSubBadge)
   const getHeaderTitle = () => {
     switch (currentView) {
       case 'dashboard':
@@ -35,11 +39,10 @@ export const Header: React.FC<HeaderProps> = ({
       case 'settings':
         return 'Configuración';
       default:
-        return '';
+        return 'Sistema';
     }
   };
 
-  // Derive subtitle/badge format based on view
   const getSubBadge = () => {
     return null;
   };
@@ -57,8 +60,12 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-6">
-
-
+          {activeAnalysisId && (
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold tracking-widest uppercase ${isMonitoring ? 'bg-green-50 text-green-700 border-green-200 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+              <span className={`w-2 h-2 rounded-full ${isMonitoring ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></span>
+              Sesión {activeAnalysisId} {isMonitoring && 'REC'}
+            </div>
+          )}
       </div>
     </header>
   );

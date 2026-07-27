@@ -25,14 +25,16 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final ve.student.netAnalyzer.service.DiagnosticsService diagnosticsService;
 
     private final ve.student.netAnalyzer.repository.PacketRepository packetRepository;
+    private final ve.student.netAnalyzer.repository.NetworkDeviceRepository networkDeviceRepository;
 
     @Autowired
-    public AnalysisServiceImpl(AnalisisRedRepository repository, SessionManagerService sessionManagerService, PacketCaptureService packetCaptureService, ve.student.netAnalyzer.repository.PacketRepository packetRepository, ve.student.netAnalyzer.service.DiagnosticsService diagnosticsService) {
+    public AnalysisServiceImpl(AnalisisRedRepository repository, SessionManagerService sessionManagerService, PacketCaptureService packetCaptureService, ve.student.netAnalyzer.repository.PacketRepository packetRepository, ve.student.netAnalyzer.service.DiagnosticsService diagnosticsService, @Autowired(required = false) ve.student.netAnalyzer.repository.NetworkDeviceRepository networkDeviceRepository) {
         this.repository = repository;
         this.sessionManagerService = sessionManagerService;
         this.packetCaptureService = packetCaptureService;
         this.packetRepository = packetRepository;
         this.diagnosticsService = diagnosticsService;
+        this.networkDeviceRepository = networkDeviceRepository;
     }
 
     @Override
@@ -43,10 +45,14 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     public AnalysisResult analyzePacketsOnInterface(String interfaceId) {
         try {
-            Long analysisId = null;
-            if (sessionManagerService.getActiveAnalysis() != null) {
-                analysisId = (long) sessionManagerService.getActiveAnalysis().getId();
-            }
+            // Detener cualquier captura previa si existe
+            packetCaptureService.stopCapture();
+            
+            // Crear el registro en la base de datos de AnalisisRed
+            AnalisisRed ar = registerAnalysis(new AnalysisDto());
+            Long analysisId = ar.getId().longValue();
+            
+            // Iniciar la captura en background vinculando el ID de análisis
             packetCaptureService.startCapture(interfaceId, analysisId);
             
             // Inyectar un ping y traceroute al inicio del análisis (si no es interfaz USB)
@@ -94,6 +100,29 @@ public class AnalysisServiceImpl implements AnalysisService {
         // Asignar el usuario que lo ejecutó desde la sesión activa
         if (sessionManagerService.getActiveUser() != null) {
             ar.setUsuarioEjecutado(sessionManagerService.getActiveUser());
+        }
+
+        // Asignar el nombre de la interfaz y vincular dispositivo de red (llave foránea)
+        InterfaceDto activeIface = sessionManagerService.getActiveInterface();
+        if (activeIface != null && activeIface.getNombreInterfaz() != null) {
+            String ifaceName = activeIface.getNombreInterfaz();
+            ar.setNombreInterfaz(ifaceName);
+
+            if (networkDeviceRepository != null) {
+                try {
+                    ve.student.netAnalyzer.model.NetworkDevice device = networkDeviceRepository.findAll().stream()
+                            .filter(d -> ifaceName.equals(d.getName()))
+                            .findFirst()
+                            .orElseGet(() -> {
+                                ve.student.netAnalyzer.model.NetworkDevice nd = new ve.student.netAnalyzer.model.NetworkDevice();
+                                nd.setName(ifaceName);
+                                nd.setIpAddress(activeIface.getIpAddress() != null ? activeIface.getIpAddress() : "0.0.0.0");
+                                nd.setType("INTERFACE");
+                                return networkDeviceRepository.save(nd);
+                            });
+                    ar.setDispositivoRed(device);
+                } catch (Exception ignored) {}
+            }
         }
 
         ar = repository.save(ar);

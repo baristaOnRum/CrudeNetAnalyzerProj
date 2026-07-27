@@ -14,13 +14,17 @@ public class AnalysisSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (criteria.getTerm() != null && !criteria.getTerm().isEmpty()) {
-                String likeTerm = "%" + criteria.getTerm().toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("id").as(String.class)), likeTerm),
-                        cb.like(cb.lower(root.get("estado")), likeTerm),
-                        cb.like(cb.lower(root.get("interfazId")), likeTerm)
-                ));
+            if (criteria.getTerm() != null && !criteria.getTerm().trim().isEmpty()) {
+                String term = criteria.getTerm().trim().replace("#", "");
+                List<Predicate> termPredicates = new ArrayList<>();
+
+                try {
+                    termPredicates.add(cb.equal(root.get("id"), Integer.parseInt(term)));
+                } catch (NumberFormatException ignored) {}
+
+                termPredicates.add(cb.like(cb.toString(root.get("id")), "%" + term + "%"));
+
+                predicates.add(cb.or(termPredicates.toArray(new Predicate[0])));
             }
 
             if (criteria.getStartDate() != null) {

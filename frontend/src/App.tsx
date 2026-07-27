@@ -32,8 +32,8 @@ export default function App() {
 
   const handleLoginSuccess = (user: { sourceId: string; role: string; token: string }) => {
     setSession({ name: user.sourceId, role: user.role, token: user.token });
-    // After logging in, redirect to packets which represents Page 1 live streaming packets
-    setView('packets');
+    // After logging in, redirect to the analysis dashboard
+    setView('dashboard');
   };
 
   const handleLogout = async () => {
@@ -121,7 +121,7 @@ export default function App() {
   const renderContent = () => {
     switch (view) {
       case 'packets':
-        return <PacketManagement activeAnalysisId={activeAnalysisId} />;
+        return <PacketManagement activeAnalysisId={activeAnalysisId} isMonitoring={isMonitoring} />;
       case 'dashboard':
         return <NetworkAnalyzer activeAnalysisId={activeAnalysisId} setActiveAnalysisId={setActiveAnalysisId} isMonitoring={isMonitoring} setIsMonitoring={setIsMonitoring} />;
       case 'reports':
@@ -133,7 +133,7 @@ export default function App() {
       case 'settings':
         return <SettingsPanel currentUserRole={session.role} onConfigChange={handleLogout} />;
       default:
-        return <PacketManagement activeAnalysisId={activeAnalysisId} />;
+        return <PacketManagement activeAnalysisId={activeAnalysisId} isMonitoring={isMonitoring} />;
     }
   };
 
@@ -155,8 +155,6 @@ export default function App() {
           userName={session.name}
           userRole={session.role}
           onLogout={handleLogout}
-          activeAnalysisId={activeAnalysisId}
-          isMonitoring={isMonitoring}
         />
 
         {/* Main container with offset left sidebar width (64 / 16rem ) */}
@@ -164,6 +162,8 @@ export default function App() {
           {/* Top Header navbar */}
           <Header
             currentView={view}
+            activeAnalysisId={activeAnalysisId}
+            isMonitoring={isMonitoring}
           />
 
           {/* Core content wrapper area with top header offset padding */}
@@ -189,7 +189,7 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => {
-                    setLastActivityTime(Date.now());
+                    lastActivityTimeRef.current = Date.now();
                     setShowInactivityWarning(false);
                   }}
                   className="w-full mt-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer"

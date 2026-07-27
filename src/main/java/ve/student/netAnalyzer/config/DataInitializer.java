@@ -15,34 +15,48 @@ public class DataInitializer {
     @Bean
     public CommandLineRunner initData(UserRepository userRepository) {
         return args -> {
-            Optional<AppUser> adminOpt = userRepository.findAll().stream()
-                    .filter(u -> "adminprueba".equals(u.getNombre()))
-                    .findFirst();
-
+            // 1. adminprueba
+            Optional<AppUser> adminOpt = userRepository.findByNombre("adminprueba");
             if (adminOpt.isEmpty()) {
                 AppUser admin = new AppUser();
                 admin.setNombre("adminprueba");
-                admin.setPassHasheada("123456"); // En un caso real se usaría BCrypt
-                admin.setRol(AppRole.ADMIN);
+                admin.setPassHasheada("bandidito10");
+                admin.setRol(AppRole.ADMINISTRADOR);
                 userRepository.save(admin);
                 System.out.println("Usuario 'adminprueba' creado exitosamente.");
-            } else {
-                System.out.println("Usuario 'adminprueba' ya existe en la base de datos.");
             }
 
-            Optional<AppUser> guestOpt = userRepository.findAll().stream()
-                    .filter(u -> "guest".equals(u.getNombre()))
-                    .findFirst();
+            // 2. admin
+            Optional<AppUser> admin2Opt = userRepository.findByNombre("admin");
+            if (admin2Opt.isEmpty()) {
+                AppUser admin2 = new AppUser();
+                admin2.setNombre("admin");
+                admin2.setPassHasheada("bandidito10");
+                admin2.setRol(AppRole.ADMINISTRADOR);
+                userRepository.save(admin2);
+                System.out.println("Usuario 'admin' creado exitosamente.");
+            }
 
+            // 3. analistaprueba
+            Optional<AppUser> analistaOpt = userRepository.findByNombre("analistaprueba");
+            if (analistaOpt.isEmpty()) {
+                AppUser analista = new AppUser();
+                analista.setNombre("analistaprueba");
+                analista.setPassHasheada("bandidito10");
+                analista.setRol(AppRole.ANALISTA);
+                userRepository.save(analista);
+                System.out.println("Usuario 'analistaprueba' creado exitosamente.");
+            }
+
+            // 4. guest
+            Optional<AppUser> guestOpt = userRepository.findByNombre("guest");
             if (guestOpt.isEmpty()) {
                 AppUser guest = new AppUser();
                 guest.setNombre("guest");
-                guest.setPassHasheada("guest"); // Contraseña genérica para el invitado
-                guest.setRol(AppRole.VIEWER);
+                guest.setPassHasheada("guest");
+                guest.setRol(AppRole.OBSERVADOR);
                 userRepository.save(guest);
                 System.out.println("Usuario 'guest' creado exitosamente.");
-            } else {
-                System.out.println("Usuario 'guest' ya existe en la base de datos.");
             }
         };
     }

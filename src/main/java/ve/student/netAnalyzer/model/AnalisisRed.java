@@ -3,6 +3,7 @@ package ve.student.netAnalyzer.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
@@ -14,11 +15,20 @@ public class AnalisisRed {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss", shape = JsonFormat.Shape.STRING)
     @Column(name = "fecha_ejecucion")
     private LocalDateTime fechaEjecucion;
 
     @Column(name = "duracion_analisis")
     private Integer duracionAnalisis;
+
+    @Column(name = "nombre_interfaz")
+    private String nombreInterfaz;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dispositivo_red_id", referencedColumnName = "id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private NetworkDevice dispositivoRed;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_ejecutado", referencedColumnName = "id")
@@ -33,6 +43,10 @@ public class AnalisisRed {
     public void setFechaEjecucion(LocalDateTime fechaEjecucion) { this.fechaEjecucion = fechaEjecucion; }
     public Integer getDuracionAnalisis() { return duracionAnalisis; }
     public void setDuracionAnalisis(Integer duracionAnalisis) { this.duracionAnalisis = duracionAnalisis; }
+    public String getNombreInterfaz() { return nombreInterfaz; }
+    public void setNombreInterfaz(String nombreInterfaz) { this.nombreInterfaz = nombreInterfaz; }
+    public NetworkDevice getDispositivoRed() { return dispositivoRed; }
+    public void setDispositivoRed(NetworkDevice dispositivoRed) { this.dispositivoRed = dispositivoRed; }
     public AppUser getUsuarioEjecutado() { return usuarioEjecutado; }
     public void setUsuarioEjecutado(AppUser usuarioEjecutado) { this.usuarioEjecutado = usuarioEjecutado; }
 }

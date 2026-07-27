@@ -12,7 +12,7 @@ export const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ isAdmin = fa
         dbType: 'postgresql',
         host: 'localhost',
         port: 5432,
-        databaseName: 'netanalyzer',
+        name: 'netanalyzer',
         username: 'postgres',
         password: ''
     });
@@ -80,7 +80,7 @@ export const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ isAdmin = fa
 
         const confirmationText = isLoginContext
             ? "¿Estás seguro de que deseas aplicar esta nueva configuración de Base de Datos?"
-            : "¡ADVERTENCIA TERMINANTE! Cambiar la base de datos durante una sesión activa forzará el cierre de tu sesión inmediatamente. ¿Estás absolutamente seguro de continuar?";
+            : "¡ADVERTENCIA! Cambiar la base de datos durante una sesión activa forzará el cierre de tu sesión inmediatamente. ¿Está absolutamente seguro de continuar?";
 
         const result = await Swal.fire({
             title: '¿Confirmar Cambio de Base de Datos?',
@@ -102,14 +102,32 @@ export const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ isAdmin = fa
                     body: JSON.stringify(dbConfig)
                 });
                 if (res.ok) {
-                    await Swal.fire('Guardado', 'La configuración ha sido aplicada exitosamente.', 'success');
-                    if (!isLoginContext) {
-                        // Logout logic if we are inside the active session
-                        await fetch('/api/auth/logout', { method: 'POST' });
-                        window.location.reload();
-                    } else {
-                        if (onConfigChange) onConfigChange();
+                    Swal.fire({
+                        title: 'Iniciando conexión',
+                        text: 'Aplicando los cambios...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    try {
+                        // Trigger dynamic backend restart
+                        await fetch('/actuator/restart', { method: 'POST' });
+                    } catch (e) {
+                        console.error('Actuator restart error:', e);
                     }
+                    
+                    // Wait for backend to come back up
+                    setTimeout(async () => {
+                        if (!isLoginContext) {
+                            await fetch('/api/auth/logout', { method: 'POST' });
+                            window.location.reload();
+                        } else {
+                            Swal.close();
+                            if (onConfigChange) onConfigChange();
+                        }
+                    }, 4000);
                 } else {
                     Swal.fire('Error', 'Hubo un problema al aplicar la configuración.', 'error');
                 }
@@ -145,14 +163,14 @@ export const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ isAdmin = fa
                         className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                     >
                         <option value="postgresql">PostgreSQL</option>
-                        <option value="sqlite">SQLite (Embebido local)</option>
+                        <option value="sqlite">SQLite (Base de datos embebida local)</option>
                     </select>
                 </div>
 
                 {dbConfig.dbType !== 'sqlite' && (
                     <>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Host</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Servidor (Host)</label>
                             <input
                                 type="text"
                                 name="host"
@@ -177,8 +195,8 @@ export const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ isAdmin = fa
                             <label className="block text-sm font-medium text-slate-700 mb-1">Nombre de la Base de Datos</label>
                             <input
                                 type="text"
-                                name="databaseName"
-                                value={dbConfig.databaseName}
+                                name="name"
+                                value={dbConfig.name}
                                 onChange={handleInputChange}
                                 disabled={!isAdmin && !isLoginContext}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"

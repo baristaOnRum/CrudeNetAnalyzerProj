@@ -1,20 +1,30 @@
 package ve.student.netAnalyzer.service.impl;
 
 import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
 import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import com.opencsv.CSVWriter;
 import ve.student.netAnalyzer.dto.Statistics;
 import ve.student.netAnalyzer.model.Packet;
 
+import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 public class ReportExporter {
+
+    private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(15, 23, 42));
+    private static final Font SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, new Color(100, 116, 139));
+    private static final Font SECTION_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new Color(79, 70, 229));
+    private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
+    private static final Font BODY_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, new Color(30, 41, 59));
 
     public static File exportToPdf(List<Packet> packets, Statistics stats, String prefix) {
         try {
@@ -25,48 +35,105 @@ public class ReportExporter {
             File pdfFile = new File(dir, prefix + "_" + System.currentTimeMillis() + ".pdf");
             
             Document document = new Document();
-            PdfWriter.getInstance(document, new FileOutputStream(pdfFile));
+            document.setMargins(36, 36, 54, 54);
+
+            PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(pdfFile));
+            writer.setPageEvent(new PdfHeaderFooterHandler("REPORTE TÉCNICO DE ANÁLISIS DE RED"));
             document.open();
             
-            document.add(new Paragraph("Reporte de Análisis de Red"));
-            document.add(new Paragraph("Generado el: " + LocalDateTime.now().toString()));
-            document.add(new Paragraph("Total de paquetes analizados: " + packets.size()));
-            document.add(new Paragraph(" "));
+            Paragraph title = new Paragraph("Reporte de Análisis de Red", TITLE_FONT);
+            title.setSpacingAfter(4f);
+            document.add(title);
+
+            Paragraph subtitle = new Paragraph("Muestra de análisis obtenida: " + (packets != null ? packets.size() : 0) + " paquetes", SUBTITLE_FONT);
+            subtitle.setSpacingAfter(14f);
+            document.add(subtitle);
             
             if (stats != null) {
-                document.add(new Paragraph("--- ESTADÍSTICAS DE LA SESIÓN ---"));
-                document.add(new Paragraph(String.format("Jitter Promedio: %.2f ms", stats.getAverageJitter())));
-                document.add(new Paragraph(String.format("Percentil 90 de Jitter: %.2f ms", stats.getJitter90thPercentile())));
-                document.add(new Paragraph(String.format("Tasa de Descarga: %.2f Bytes/s", stats.getDownloadRate())));
-                document.add(new Paragraph(String.format("Tasa de Paquetes: %.2f pkt/s", stats.getPacketRate())));
-                document.add(new Paragraph(String.format("Percentil 90 de Tamaño: %.2f bytes", stats.getSize90thPercentile())));
-                document.add(new Paragraph(" "));
+                Paragraph sec1 = new Paragraph("ESTADÍSTICAS GENERALES DE LA SESIÓN", SECTION_FONT);
+                sec1.setSpacingAfter(6f);
+                document.add(sec1);
+
+                PdfPTable statsTable = new PdfPTable(2);
+                statsTable.setWidthPercentage(100);
+                statsTable.setWidths(new float[]{2f, 3f});
+                statsTable.setSpacingAfter(14f);
+
+                addTableRow(statsTable, "Jitter Promedio", String.format("%.2f ms", stats.getAverageJitter()));
+                addTableRow(statsTable, "Percentil 90 de Jitter", String.format("%.2f ms", stats.getJitter90thPercentile()));
+                addTableRow(statsTable, "Tasa de Descarga (Throughput)", String.format("%.2f Bytes/s", stats.getDownloadRate()));
+                addTableRow(statsTable, "Tasa de Transmisión de Paquetes", String.format("%.2f pkt/s", stats.getPacketRate()));
+                addTableRow(statsTable, "Percentil 90 de Tamaño de Paquete", String.format("%.2f Bytes", stats.getSize90thPercentile()));
+                
+                document.add(statsTable);
                 
                 if (stats.getTopSourceIps() != null && !stats.getTopSourceIps().isEmpty()) {
-                    document.add(new Paragraph("--- TOP 5 IPs ORIGEN (PARETO) ---"));
+                    Paragraph sec2 = new Paragraph("TOP 5 IPs ORIGEN (ANÁLISIS PARETO)", SECTION_FONT);
+                    sec2.setSpacingAfter(6f);
+                    document.add(sec2);
+
+                    PdfPTable paretoTable = new PdfPTable(2);
+                    paretoTable.setWidthPercentage(100);
+                    paretoTable.setSpacingAfter(14f);
+                    addTableHeader(paretoTable, "Dirección IP Origen");
+                    addTableHeader(paretoTable, "Total Paquetes Interceptados");
+
                     for (Map.Entry<String, Long> entry : stats.getTopSourceIps().entrySet()) {
-                        document.add(new Paragraph(String.format("IP: %s | Paquetes: %d", entry.getKey(), entry.getValue())));
+                        paretoTable.addCell(createCell(entry.getKey()));
+                        paretoTable.addCell(createCell(String.valueOf(entry.getValue())));
                     }
-                    document.add(new Paragraph(" "));
+                    document.add(paretoTable);
                 }
 
                 if (stats.getProtocolDistribution() != null && !stats.getProtocolDistribution().isEmpty()) {
-                    document.add(new Paragraph("--- DISTRIBUCIÓN DE PROTOCOLOS ---"));
+                    Paragraph sec3 = new Paragraph("DISTRIBUCIÓN DE PROTOCOLOS DE RED", SECTION_FONT);
+                    sec3.setSpacingAfter(6f);
+                    document.add(sec3);
+
+                    PdfPTable protoTable = new PdfPTable(2);
+                    protoTable.setWidthPercentage(100);
+                    protoTable.setSpacingAfter(14f);
+                    addTableHeader(protoTable, "Protocolo de Capa de Red / Transporte");
+                    addTableHeader(protoTable, "Cantidad de Tramas");
+
                     for (Map.Entry<String, Long> entry : stats.getProtocolDistribution().entrySet()) {
-                        document.add(new Paragraph(String.format("Protocolo: %s | Paquetes: %d", entry.getKey(), entry.getValue())));
+                        protoTable.addCell(createCell(entry.getKey()));
+                        protoTable.addCell(createCell(String.valueOf(entry.getValue())));
                     }
-                    document.add(new Paragraph(" "));
+                    document.add(protoTable);
                 }
-            } else {
-                document.add(new Paragraph("--- MUESTRA DE PAQUETES ---"));
-                for (int i = 0; i < Math.min(packets.size(), 500); i++) {
+            } else if (packets != null) {
+                Paragraph sec = new Paragraph("RESUMEN DE MUESTRA DE PAQUETES", SECTION_FONT);
+                sec.setSpacingAfter(6f);
+                document.add(sec);
+
+                PdfPTable table = new PdfPTable(5);
+                table.setWidthPercentage(100);
+                table.setWidths(new float[]{1f, 1.5f, 2f, 2f, 1.5f});
+                table.setHeaderRows(1);
+
+                addTableHeader(table, "ID");
+                addTableHeader(table, "Protocolo");
+                addTableHeader(table, "Origen");
+                addTableHeader(table, "Destino");
+                addTableHeader(table, "Longitud (B)");
+
+                int limit = Math.min(packets.size(), 200);
+                for (int i = 0; i < limit; i++) {
                     Packet p = packets.get(i);
-                    document.add(new Paragraph(String.format("ID: %s | Origen: %s | Destino: %s | Protocolo: %s | Longitud: %d",
-                            p.getId(), p.getFuente(), p.getDestino(), p.getTipoPaquete(), p.getLongitud())));
+                    table.addCell(createCell(p.getId() != null ? p.getId().toString() : "N/A"));
+                    table.addCell(createCell(p.getTipoPaquete() != null ? p.getTipoPaquete() : "N/A"));
+                    table.addCell(createCell(p.getFuente() != null ? p.getFuente() : "N/A"));
+                    table.addCell(createCell(p.getDestino() != null ? p.getDestino() : "N/A"));
+                    table.addCell(createCell(p.getLongitud() != null ? p.getLongitud().toString() : "0"));
                 }
                 
-                if (packets.size() > 500) {
-                    document.add(new Paragraph("... (Mostrando solo los primeros 500 paquetes en el resumen impreso)"));
+                document.add(table);
+
+                if (packets.size() > 200) {
+                    Paragraph overflowMsg = new Paragraph("... (Mostrando los primeros 200 paquetes en el resumen impreso)", SUBTITLE_FONT);
+                    overflowMsg.setSpacingBefore(8f);
+                    document.add(overflowMsg);
                 }
             }
             
@@ -114,5 +181,32 @@ public class ReportExporter {
             e.printStackTrace();
             return null;
         }
+    }
+
+    private static void addTableHeader(PdfPTable table, String text) {
+        PdfPCell cell = new PdfPCell(new Paragraph(text, HEADER_FONT));
+        cell.setBackgroundColor(new Color(15, 23, 42));
+        cell.setPadding(6f);
+        table.addCell(cell);
+    }
+
+    private static PdfPCell createCell(String text) {
+        PdfPCell cell = new PdfPCell(new Paragraph(text, BODY_FONT));
+        cell.setPadding(5f);
+        cell.setBorderColor(new Color(226, 232, 240));
+        return cell;
+    }
+
+    private static void addTableRow(PdfPTable table, String label, String value) {
+        PdfPCell labelCell = new PdfPCell(new Paragraph(label, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new Color(71, 85, 105))));
+        labelCell.setBackgroundColor(new Color(248, 250, 252));
+        labelCell.setPadding(6f);
+        labelCell.setBorderColor(new Color(226, 232, 240));
+        table.addCell(labelCell);
+
+        PdfPCell valCell = new PdfPCell(new Paragraph(value, BODY_FONT));
+        valCell.setPadding(6f);
+        valCell.setBorderColor(new Color(226, 232, 240));
+        table.addCell(valCell);
     }
 }

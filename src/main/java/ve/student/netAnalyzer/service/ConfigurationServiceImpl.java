@@ -64,6 +64,10 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             newParam.setNombreConfiguracion(key);
             if (key.equals("CRITICAL_LATENCY_MS")) newParam.setValorSeleccionado("150");
             else if (key.equals("CRITICAL_JITTER_MS")) newParam.setValorSeleccionado("30");
+            else if (key.equals("DEFAULT_PING_TARGET")) newParam.setValorSeleccionado("google.com");
+            else if (key.equals("DEFAULT_TRACEROUTE_TARGET")) newParam.setValorSeleccionado("8.8.8.8");
+            else if (key.equals("DEFAULT_AUTO_DNS_RESOLVE")) newParam.setValorSeleccionado("true");
+            else if (key.equals("MIN_PEAK_DOWNLOAD_RATE_KBPS")) newParam.setValorSeleccionado("500");
             else newParam.setValorSeleccionado("0");
             return repository.save(newParam);
         });
@@ -85,7 +89,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             String dbType = dbConfig.getDbType();
             String url = dbConfig.getUrl();
             
-            if (url == null || url.trim().isEmpty()) {
+            if (dbType != null && !dbType.trim().isEmpty()) {
                 String host = dbConfig.getHost() != null && !dbConfig.getHost().trim().isEmpty() ? dbConfig.getHost() : "127.0.0.1";
                 String port = dbConfig.getPort() != null && !dbConfig.getPort().trim().isEmpty() ? dbConfig.getPort() : "5432";
                 String name = dbConfig.getName() != null && !dbConfig.getName().trim().isEmpty() ? dbConfig.getName() : "netanalyzer_db";
@@ -140,12 +144,32 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             yaml.append("      ddl-auto: update\n");
             yaml.append("    show-sql: true\n");
             yaml.append("    database-platform: ").append(dialect).append("\n\n");
+            yaml.append("management:\n");
+            yaml.append("  endpoint:\n");
+            yaml.append("    restart:\n");
+            yaml.append("      enabled: true\n");
+            yaml.append("  endpoints:\n");
+            yaml.append("    web:\n");
+            yaml.append("      exposure:\n");
+            yaml.append("        include: restart\n\n");
             yaml.append("capture:\n");
             yaml.append("  tshark:\n");
             yaml.append("    path: \"./tshark-portable/App/Wireshark/tshark.exe\"\n");
 
-            Files.writeString(Paths.get(yamlPath), yaml.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            System.out.println("Configuración de base de datos actualizada en application.yaml. Por favor, reinicie la aplicación.");
+            String finalYaml = yaml.toString();
+            Files.writeString(Paths.get(yamlPath), finalYaml, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            
+            // Si estamos en entorno de desarrollo, sobreescribir también en la ruta de classpath compilada
+            if (yamlPath.contains("src/main/resources")) {
+                try {
+                    String buildPath = yamlPath.replace("src/main/resources", "build/resources/main");
+                    Files.writeString(Paths.get(buildPath), finalYaml, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                } catch (Exception ex) {
+                    System.err.println("Could not write to build resources path: " + ex.getMessage());
+                }
+            }
+
+            System.out.println("Configuración de base de datos actualizada. Listo para refresco.");
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException("No se pudo guardar la configuración de base de datos");
@@ -160,7 +184,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
     public boolean testDatabaseConnection(DbConnectionDto dbConfig) {
         String dbType = dbConfig.getDbType();
         String url = dbConfig.getUrl();
-        if (url == null || url.trim().isEmpty()) {
+        if (dbType != null && !dbType.trim().isEmpty()) {
             String host = dbConfig.getHost() != null && !dbConfig.getHost().trim().isEmpty() ? dbConfig.getHost() : "127.0.0.1";
             String port = dbConfig.getPort() != null && !dbConfig.getPort().trim().isEmpty() ? dbConfig.getPort() : "5432";
             String name = dbConfig.getName() != null && !dbConfig.getName().trim().isEmpty() ? dbConfig.getName() : "netanalyzer_db";
@@ -174,6 +198,17 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             } else {
                 url = "jdbc:sqlite:" + name + ".db";
             }
+        }
+
+        try {
+            if (url != null) {
+                if (url.startsWith("jdbc:postgresql")) Class.forName("org.postgresql.Driver");
+                else if (url.startsWith("jdbc:mysql")) Class.forName("com.mysql.cj.jdbc.Driver");
+                else if (url.startsWith("jdbc:h2")) Class.forName("org.h2.Driver");
+                else if (url.startsWith("jdbc:sqlite")) Class.forName("org.sqlite.JDBC");
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("JDBC Driver class not found: " + e.getMessage());
         }
 
         try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, dbConfig.getUsername(), dbConfig.getPassword())) {

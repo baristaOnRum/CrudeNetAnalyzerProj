@@ -73,8 +73,8 @@ public class PacketController {
         byte[] data = packetService.exportSessionPackets(sessionId, format);
         
         AuditDto audit = new AuditDto();
-        audit.setNombreAuditoria("Exportación de Paquetes");
-        audit.setDetalleCambio("Se exportaron los paquetes del análisis " + sessionId + " en formato " + format.name() + ". Rango/Hora de emisión: " + LocalDateTime.now().toString());
+        audit.setNombreAuditoria("Exportación de Tramas de Paquetes");
+        audit.setDetalleCambio("Se realizó la descarga del registro de paquetes capturados en la sesión #" + sessionId + " en formato " + format.name() + ".");
         audit.setFechaHora(LocalDateTime.now());
         auditService.registerAudit(audit);
         
@@ -87,32 +87,56 @@ public class PacketController {
     public ResponseEntity<org.springframework.data.domain.Page<Packet>> searchPackets(
             @RequestBody ve.student.netAnalyzer.dto.PacketSearchCriteria criteria,
             org.springframework.data.domain.Pageable pageable) {
+
+        org.springframework.data.domain.Sort incomingSort = pageable.getSort();
+        List<org.springframework.data.domain.Sort.Order> orders = new java.util.ArrayList<>();
+
+        if (incomingSort.isSorted()) {
+            for (org.springframework.data.domain.Sort.Order order : incomingSort) {
+                String prop = order.getProperty();
+                if ("sourceIp".equalsIgnoreCase(prop)) prop = "fuente";
+                else if ("destIp".equalsIgnoreCase(prop)) prop = "destino";
+                else if ("protocol".equalsIgnoreCase(prop)) prop = "tipoPaquete";
+                else if ("length".equalsIgnoreCase(prop)) prop = "longitud";
+                
+                orders.add(new org.springframework.data.domain.Sort.Order(order.getDirection(), prop));
+            }
+        } else {
+            orders.add(new org.springframework.data.domain.Sort.Order(org.springframework.data.domain.Sort.Direction.DESC, "timestamp"));
+        }
+
+        // Siempre añadir desempate secundario por 'id' para evitar fluctuación/reordenamiento aleatorio de paquetes con igual timestamp
+        boolean hasId = orders.stream().anyMatch(o -> o.getProperty().equalsIgnoreCase("id"));
+        if (!hasId) {
+            org.springframework.data.domain.Sort.Direction primaryDir = orders.isEmpty() ? 
+                org.springframework.data.domain.Sort.Direction.DESC : orders.get(0).getDirection();
+            orders.add(new org.springframework.data.domain.Sort.Order(primaryDir, "id"));
+        }
+
+        org.springframework.data.domain.Pageable deterministicPageable = org.springframework.data.domain.PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            org.springframework.data.domain.Sort.by(orders)
+        );
+
         org.springframework.data.jpa.domain.Specification<Packet> spec = ve.student.netAnalyzer.specification.PacketSpecification.withCriteria(criteria);
-        return ResponseEntity.ok(packetRepository.findAll(spec, pageable));
+        return ResponseEntity.ok(packetRepository.findAll(spec, deterministicPageable));
     }
 
     @GetMapping("/metadata")
     public ResponseEntity<java.util.Map<String, Object>> getMetadata() {
-        // Return min/max bounds for dates and lengths
-        List<Packet> all = packetRepository.findAll(org.springframework.data.domain.Sort.by("timestamp"));
         java.util.Map<String, Object> meta = new java.util.HashMap<>();
-        if (!all.isEmpty()) {
-            meta.put("minDate", all.get(0).getTimestamp());
-            meta.put("maxDate", all.get(all.size() - 1).getTimestamp());
+        List<Object[]> results = packetRepository.getGlobalMetadata();
+        
+        if (results != null && !results.isEmpty() && results.get(0)[0] != null) {
+            Object[] row = results.get(0);
+            meta.put("minDate", row[0]);
+            meta.put("maxDate", row[1]);
+            meta.put("minLength", row[2]);
+            meta.put("maxLength", row[3]);
+            meta.put("minResponseTime", row[4]);
         }
         
-        List<Packet> byLength = packetRepository.findAll(org.springframework.data.domain.Sort.by("longitud"));
-        if (!byLength.isEmpty()) {
-            meta.put("minLength", byLength.get(0).getLongitud());
-            meta.put("maxLength", byLength.get(byLength.size() - 1).getLongitud());
-        }
-        
-        List<Packet> byResponse = packetRepository.findAll(org.springframework.data.domain.Sort.by("tiempoRespuesta"));
-        if (!byResponse.isEmpty() && byResponse.get(0).getTiempoRespuesta() != null) {
-            meta.put("minResponseTime", byResponse.get(0).getTiempoRespuesta());
-            // max is the last non-null. Actually just taking last element might work if sort puts nulls first or last.
-            // A safer approach:
-        }
         return ResponseEntity.ok(meta);
     }
 
@@ -126,7 +150,8 @@ public class PacketController {
             List<Packet> packets = packetRepository.findAll(spec);
             
             if (fmt == ve.student.netAnalyzer.model.ExportFormat.PDF) {
-                byte[] pdfBytes = ve.student.netAnalyzer.service.impl.PacketExporter.exportListToPdf(packets);
+                boolean resolveDns = criteria.getResolveDns() == null || criteria.getResolveDns();
+                byte[] pdfBytes = ve.student.netAnalyzer.service.impl.PacketExporter.exportListToPdf(packets, resolveDns);
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                 headers.add(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=packets.pdf");
                 headers.add(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/pdf");

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
+import { formatDateVE } from '../utils/dateUtils';
 import { Modal } from './common/Modal';
 
 interface NetworkAnalyzerProps {
@@ -75,6 +76,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
   
   // Incremental fetching refs
   const lastFetchTimestampRef = useRef<number>(Date.now());
+  const isFetchingRef = useRef<boolean>(false);
   const monitoringStartRef = useRef<number>(Date.now());
   const lastPacketIdRef = useRef<number>(0);
   const sessionProtocolsRef = useRef<Record<string, number>>({});
@@ -97,17 +99,25 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
   const [traceStatus, setTraceStatus] = useState<'Ready' | 'tracing' | 'complete'>('Ready');
   const [traceHops, setTraceHops] = useState<{ hop: number; ip: string; location: string; latency: number }[]>([]);
 
-  const fetchDevices = async () => {
-    try {
-      const response = await fetch('/api/devices');
-      if (response.ok) {
-        const data = await response.json();
-        setDevicesList(data);
+  useEffect(() => {
+    const fetchDefaultTargets = async () => {
+      try {
+        const pingRes = await fetch('/api/configurations/DEFAULT_PING_TARGET');
+        if (pingRes.ok) {
+          const data = await pingRes.json();
+          if (data.valorSeleccionado) setPingTarget(data.valorSeleccionado);
+        }
+        const traceRes = await fetch('/api/configurations/DEFAULT_TRACEROUTE_TARGET');
+        if (traceRes.ok) {
+          const data = await traceRes.json();
+          if (data.valorSeleccionado) setTraceTarget(data.valorSeleccionado);
+        }
+      } catch (e) {
+        console.warn("Could not fetch default diagnostic targets:", e);
       }
-    } catch (e) {
-      console.error('Failed to fetch devices', e);
-    }
-  };
+    };
+    fetchDefaultTargets();
+  }, []);
 
   const fetchInterfaces = async () => {
     try {
@@ -121,13 +131,18 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           if (activeResp.status === 200) {
             const activeData = await activeResp.json();
             if (activeData && activeData.nombreInterfaz) {
+              const activeId = activeData.idAnalisis;
               setInterfaceData((prev: any) => ({
                 ...prev,
                 nombreInterfaz: activeData.nombreInterfaz,
                 macAddress: activeData.macAddress,
                 ipAddress: activeData.ipAddress || '0.0.0.0',
-                idAnalisis: activeData.idAnalisis || ''
+                idAnalisis: activeId || ''
               }));
+              if (activeId && hasAutoLoadedRef.current !== activeId) {
+                hasAutoLoadedRef.current = activeId;
+                loadActiveAnalysisDetails(activeId, false);
+              }
             } else {
               setInterfaceData((prev: any) => ({ ...prev, nombreInterfaz: '', macAddress: '', idAnalisis: '' }));
             }
@@ -247,11 +262,178 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
     }
     
+    const stopAnalysis = () => {
+      fetch('/api/analysis/stop', { method: 'POST', keepalive: true }).catch(() => {});
+    };
+    
+    window.addEventListener('beforeunload', stopAnalysis);
+    
     return () => {
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+      // We explicitly DO NOT call stopAnalysis() here so the capture can continue
+      // running in the background when the user navigates to other screens.
+      window.removeEventListener('beforeunload', stopAnalysis);
     };
   }, [isMonitoring]);
+
+  const loadActiveAnalysisDetails = async (id: number, showSuccessToast = false) => {
+    Swal.fire({
+      title: 'Cargando sesión activa...',
+      text: `Calculando métricas y obteniendo paquetes de la sesión #${id}`,
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    try {
+      const summaryRes = await fetch(`/api/analysis/${id}/summary`);
+      let summary = null;
+      if (summaryRes.ok) summary = await summaryRes.json();
+
+      const packetsRes = await fetch(`/api/packets?idAnalisis=${id}&page=0&size=50`);
+      let packets: any[] = [];
+      if (packetsRes.ok) {
+        const pData = await packetsRes.json();
+        packets = pData.content || pData;
+      }
+
+      // Obtenemos estadísticas del backend o las calculamos desde la lista de paquetes
+      let calcLoss = 0;
+      let calcJitter = 0;
+
+      try {
+        const statsRes = await fetch('/api/reports/statistics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: String(id) })
+        });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (statsData.errorRate !== undefined) calcLoss = +statsData.errorRate.toFixed(2);
+          if (statsData.averageJitter !== undefined) calcJitter = +statsData.averageJitter.toFixed(2);
+        }
+      } catch (e) {
+        console.warn("No se pudieron obtener estadísticas avanzadas de sesión:", e);
+      }
+
+      // Fallback a cálculo desde la lista de paquetes si la API retornó 0
+      if (calcJitter === 0 && packets.length > 0) {
+        let sumDiffs = 0;
+        let countDiffs = 0;
+        const lastRtt: Record<string, number> = {};
+        packets.forEach((p: any) => {
+          const rtt = p.tiempoRespuesta;
+          if (rtt != null && rtt > 0) {
+            const key = `${p.fuente || p.sourceIp}-${p.destino || p.destIp}-${p.tipoPaquete || p.protocol}`;
+            if (lastRtt[key] !== undefined) {
+              sumDiffs += Math.abs(rtt - lastRtt[key]);
+              countDiffs++;
+            }
+            lastRtt[key] = rtt;
+          }
+        });
+        if (countDiffs > 0) {
+          calcJitter = +(sumDiffs / countDiffs).toFixed(2);
+        }
+      }
+
+      if (calcLoss === 0 && packets.length > 0) {
+        const noResp = packets.filter((p: any) => !p.respuesta || String(p.respuesta).trim() === '').length;
+        calcLoss = +((noResp / packets.length) * 100).toFixed(2);
+      }
+
+      if (summary) {
+        const pps = summary.durationSeconds > 0 ? +(summary.totalPackets / summary.durationSeconds).toFixed(2) : 0;
+        const mbps = summary.durationSeconds > 0 ? +((summary.totalBytes * 8 / 1_000_000) / summary.durationSeconds).toFixed(4) : 0;
+        
+        setPacketStats({
+          total: summary.totalPackets,
+          protocols: summary.protocolDistribution || {}
+        });
+        setTrafficMetrics({ pps, mbps, loss: calcLoss, jitter: calcJitter });
+        setSessionAvgMetrics({ pps, mbps, loss: calcLoss, jitter: calcJitter });
+      }
+
+      setPacketStream(packets.map((p: any, idx: number) => ({
+        ...p,
+        id: p.id || `PKT-${idx}`
+      })));
+
+      // Consultamos los paquetes de diagnóstico guardados para esta sesión (Ping, Traceroute, Speedtest)
+      try {
+        const diagRes = await fetch(`/api/diagnostics/analysis/${id}`);
+        if (diagRes.ok) {
+          const diagList: any[] = await diagRes.json();
+          if (Array.isArray(diagList) && diagList.length > 0) {
+            // Filtrar paquetes de Ping
+            const pingPkts = diagList.filter(d => d.componente === 'PING' || d.tipoPaquete === 'ICMP');
+            if (pingPkts.length > 0) {
+              const logs: string[] = [];
+              let totalLat = 0;
+              let successCount = 0;
+              let lossCount = 0;
+
+              pingPkts.forEach(p => {
+                if (p.respuesta) {
+                  logs.push(`Respuesta desde ${p.destino}: tiempo=${p.tiempoRespuesta}ms ${p.respuesta}`);
+                  totalLat += (p.tiempoRespuesta || 0);
+                  successCount++;
+                } else {
+                  logs.push(`Tiempo de espera agotado para la solicitud a ${p.destino}`);
+                  lossCount++;
+                }
+              });
+
+              setPingLogs(logs);
+              const avgLatStr = successCount > 0 ? `${(totalLat / successCount).toFixed(2)} ms` : 'No registrada';
+              const lossPctStr = `${((lossCount / pingPkts.length) * 100).toFixed(0)}%`;
+              setPingStats({ avgLatency: avgLatStr, loss: lossPctStr });
+            } else {
+              setPingLogs([]);
+              setPingStats({ avgLatency: 'No registrada', loss: 'No registrada' });
+            }
+
+            const tracePkts = diagList.filter(d => d.componente === 'TRACEROUTE' || d.tipoPaquete === 'TRACEROUTE');
+            if (tracePkts.length > 0) {
+              const hops = tracePkts.map((p, idx) => {
+                let loc = p.respuesta || p.contenidos;
+                if (!loc || loc === 'TTL_EXCEEDED') {
+                  loc = idx === 0 ? 'Router Local / Pasarela' : (idx === tracePkts.length - 1 ? 'Destino Final Alcanzado' : 'Router / Salto Intermedio');
+                }
+                return {
+                  hop: idx + 1,
+                  ip: p.destino || p.fuente || 'Salto Intermedio',
+                  latency: p.tiempoRespuesta || 0,
+                  location: loc
+                };
+              });
+              setTraceHops(hops);
+            } else {
+              setTraceHops([]);
+            }
+          } else {
+            setPingLogs([]);
+            setPingStats({ avgLatency: 'No registrada', loss: 'No registrada' });
+            setTraceHops([]);
+          }
+        }
+      } catch (diagErr) {
+        console.warn("Fallo al obtener paquetes de diagnóstico de la sesión:", diagErr);
+      }
+
+      Swal.close();
+      if (showSuccessToast) {
+        Swal.fire('Cargado', `Sesión #${id} cargada exitosamente.`, 'success');
+      }
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', 'Fallo al obtener los datos de la sesión activa', 'error');
+    }
+  };
+
+  const hasAutoLoadedRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (activeAnalysisId) {
@@ -259,21 +441,33 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
     }
   }, [activeAnalysisId]);
 
+  // Auto-fetch active/current session data on page reload / navigation back to Análisis
+  useEffect(() => {
+    const currentId = activeAnalysisId || propAnalysisId || interfaceData.idAnalisis;
+    if (currentId && hasAutoLoadedRef.current !== currentId) {
+      hasAutoLoadedRef.current = currentId;
+      loadActiveAnalysisDetails(currentId, false);
+    }
+  }, [activeAnalysisId, propAnalysisId, interfaceData.idAnalisis]);
+
   const fetchPackets = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     const fetchStartTime = Date.now();
     try {
       const sinceId = lastPacketIdRef.current;
-      const response = await fetch(`/api/packets?sinceId=${sinceId}`);
+      const currentAnalysisId = activeAnalysisIdRef.current;
+      const url = currentAnalysisId 
+          ? `/api/packets?sinceId=${sinceId}&idAnalisis=${currentAnalysisId}` 
+          : `/api/packets?sinceId=${sinceId}`;
+          
+      const response = await fetch(url);
       if (response.ok) {
         let data: any[] = await response.json();
-        const currentAnalysisId = activeAnalysisIdRef.current;
-        if (currentAnalysisId) {
-          data = data.filter(p => p.idAnalisis === currentAnalysisId);
-        }
 
         if (data.length > 0) {
-          // Update last ID seen
-          lastPacketIdRef.current = Math.max(...data.map(p => p.id));
+          // Update last ID seen safely to avoid Maximum call stack size exceeded
+          lastPacketIdRef.current = data.reduce((max, p) => p.id > max ? p.id : max, lastPacketIdRef.current);
           
           // Prepend to stream, keep last 50
           setPacketStream(prev => {
@@ -378,6 +572,8 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
       }
     } catch (e) {
       console.error('Failed to fetch packets for monitoring', e);
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
@@ -517,56 +713,10 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
   const handleLoadAnalysis = async (session: any) => {
     setIsLoadAnalysisModalOpen(false);
-    Swal.fire({
-      title: 'Cargando sesión...',
-      text: 'Calculando tráfico promedio y obteniendo paquetes',
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      }
-    });
-
-    try {
-      // 1. Fetch Summary
-      const summaryRes = await fetch(`/api/analysis/${session.id}/summary`);
-      let summary = null;
-      if (summaryRes.ok) summary = await summaryRes.json();
-
-      // 2. Fetch last packets (page 0, size 50)
-      const packetsRes = await fetch(`/api/packets?idAnalisis=${session.id}&page=0&size=50`);
-      let packets: any[] = [];
-      if (packetsRes.ok) {
-        const pData = await packetsRes.json();
-        packets = pData.content || pData;
-      }
-
-      if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
-      setIsMonitoring(false);
-      handleSetActiveAnalysisId(session.id);
-
-      // Populate cards
-      if (summary) {
-        const pps = summary.durationSeconds > 0 ? +(summary.totalPackets / summary.durationSeconds).toFixed(2) : 0;
-        const mbps = summary.durationSeconds > 0 ? +((summary.totalBytes * 8 / 1_000_000) / summary.durationSeconds).toFixed(4) : 0;
-        
-        setPacketStats({
-          total: summary.totalPackets,
-          protocols: summary.protocolDistribution || {}
-        });
-        setTrafficMetrics({ pps, mbps, loss: 0, jitter: 0 }); // Note: loss calculation for historical can be complex, defaulting to 0 or we could iterate packets if needed
-      }
-
-      setPacketStream(packets.map((p: any) => ({
-        ...p,
-        id: p.id || Math.floor(Math.random() * 90000)
-      })));
-
-      Swal.close();
-      Swal.fire('Cargado', `Sesión #${session.id} cargada exitosamente.`, 'success');
-    } catch (e) {
-      console.error(e);
-      Swal.fire('Error', 'Fallo al cargar la sesión', 'error');
-    }
+    if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
+    setIsMonitoring(false);
+    handleSetActiveAnalysisId(session.id);
+    await loadActiveAnalysisDetails(session.id, true);
   };
 
   const getProtocolSlices = () => {
@@ -813,7 +963,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
       {/* Global Traffic Metrics */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6 select-none mt-6">
-        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
+        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center relative">
+          <div className="absolute top-3 right-3 group z-40">
+            <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+            <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 top-full mt-1 right-0 pointer-events-none w-64 text-slate-600 leading-relaxed font-normal normal-case">
+              <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Paquetes por Segundo (pps)</div>
+              <p className="mb-1">Mide la frecuencia con la que se reciben o transmiten paquetes en la interfaz.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">speed</span>
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Paquetes / Seg</span>
@@ -833,7 +990,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           </div>
         </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
+        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center relative">
+          <div className="absolute top-3 right-3 group z-40">
+            <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+            <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 top-full mt-1 right-0 pointer-events-none w-64 text-slate-600 leading-relaxed font-normal normal-case">
+              <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Tasa de Datos (Mbps)</div>
+              <p className="mb-1">Mide el rendimiento o ancho de banda consumido en megabits por segundo del último lote de paquetes en la red. Este se puede ver mediante la tabla de flujo en vivo.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">network_check</span>
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Tasa de Datos</span>
@@ -853,7 +1017,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           </div>
         </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
+        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center relative">
+          <div className="absolute top-3 right-3 group z-40">
+            <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+            <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 top-full mt-1 right-0 pointer-events-none w-64 text-slate-600 leading-relaxed font-normal normal-case">
+              <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Tasa de Pérdida (%)</div>
+              <p className="mb-1">Porcentaje de solicitudes sin respuesta o paquetes descartados en la red.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">warning</span>
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pérdida</span>
@@ -873,7 +1044,14 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           </div>
         </div>
 
-        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center">
+        <div className="bg-white border border-[#E2E8F0] p-5 rounded-2xl shadow-sm flex flex-col justify-center relative">
+          <div className="absolute top-3 right-3 group z-40">
+            <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+            <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 top-full mt-1 right-0 pointer-events-none w-64 text-slate-600 leading-relaxed font-normal normal-case">
+              <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Jitter (ms)</div>
+              <p className="mb-1">Fluctuación o variación en el tiempo de retardo entre paquetes consecutivos.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-[#64748B] text-lg">timeline</span>
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Jitter</span>
@@ -932,60 +1110,84 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center p-8 gap-8">
-          <div className={`relative w-72 h-72 flex-shrink-0 select-none ${(isMonitoring || activeAnalysisId) ? '' : 'opacity-50'}`}>
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#F1F5F9" strokeWidth="3" />
-              {(isMonitoring || activeAnalysisId) && packetStats.total > 0 && protocolSlices.map((s, i) => (
-                <circle key={i} cx="18" cy="18" fill="transparent" r="15.915" stroke={s.color} strokeWidth="3" strokeDasharray={s.dasharray} strokeDashoffset={s.offset} />
-              ))}
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className={`text-4xl font-extrabold ${(isMonitoring || activeAnalysisId) ? 'text-[#0F172A]' : 'text-slate-300'}`}>
-                {(isMonitoring || activeAnalysisId) ? packetStats.total : '--'}
-              </span>
-              <span className={`text-[10px] font-mono tracking-wider font-bold uppercase mt-1 ${(isMonitoring || activeAnalysisId) ? 'text-[#64748B]' : 'text-slate-400'}`}>
-                Total Pkts
-              </span>
-            </div>
-          </div>
-
-          <div className="flex-1 max-w-xl flex items-center justify-center border border-[#E2E8F0] rounded-xl bg-white min-h-[200px] shadow-sm">
-            {(isMonitoring || activeAnalysisId) ? (
-              <div className="w-full p-6 space-y-4">
-                {protocolSlices.map((s, i) => (
-                  <div key={i} className="flex justify-between items-center group hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full shadow-inner" style={{ backgroundColor: s.color }}></div>
-                      <span className="font-semibold text-slate-700">{s.name}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-bold text-slate-800 tabular-nums w-12 text-right">{s.pct}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400 italic font-sans text-center px-8 bg-slate-50 w-full h-full flex items-center justify-center rounded-xl border border-dashed border-slate-200">
-                Inicie el análisis pasivo o activo para recolectar métricas de distribución de protocolos en este segmento de la red.
+          {(!isMonitoring && !activeAnalysisId) || packetStats.total === 0 ? (
+            <div className="w-full flex flex-col items-center justify-center py-12 px-6 text-center bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+              <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">wifi_off</span>
+              <p className="text-sm font-semibold text-slate-600 font-sans">No se detectan paquetes en la red</p>
+              <p className="text-xs text-slate-400 mt-1 font-sans">
+                {isMonitoring ? 'Esperando tráfico de red en la interfaz seleccionada...' : 'Inicie el monitoreo o seleccione una sesión para capturar paquetes.'}
               </p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div className="relative w-72 h-72 flex-shrink-0 select-none">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#F1F5F9" strokeWidth="3" />
+                  {protocolSlices.map((s, i) => (
+                    <circle key={i} cx="18" cy="18" fill="transparent" r="15.915" stroke={s.color} strokeWidth="3" strokeDasharray={s.dasharray} strokeDashoffset={s.offset} />
+                  ))}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-4xl font-extrabold text-[#0F172A]">
+                    {packetStats.total}
+                  </span>
+                  <span className="text-[10px] font-mono tracking-wider font-bold uppercase mt-1 text-[#64748B]">
+                    Total Pkts
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex-1 max-w-xl flex items-center justify-center border border-[#E2E8F0] rounded-xl bg-white min-h-[200px] shadow-sm">
+                <div className="w-full p-6 space-y-4">
+                  {protocolSlices.map((s, i) => (
+                    <div key={i} className="flex justify-between items-center group hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full shadow-inner" style={{ backgroundColor: s.color }}></div>
+                        <span className="font-semibold text-slate-700">{s.name}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-bold text-slate-800 tabular-nums w-12 text-right">{s.pct}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
       {/* Network Diagnostics tools box */}
       <section className="space-y-4">
-        <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2 select-none">
-          <span className="material-symbols-outlined text-sm">construction</span>
-          Diagnósticos de Red Activos
-        </h2>
+        <div className="flex items-center gap-2 select-none">
+          <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">construction</span>
+            Diagnósticos de Red Activos
+          </h2>
+          <div className="relative group inline-flex items-center">
+            <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+            <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 bottom-full mb-2 left-0 pointer-events-none w-72 text-slate-600 leading-relaxed font-normal normal-case">
+              <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Diagnósticos de Red Activos</div>
+              <div>Herramientas interactivas de inyección de tráfico activo para evaluar conectividad (Ping), rastreo de saltos (Traceroute) y ancho de banda/velocidad de transferencia (Speed Test).</div>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-12 gap-6">
 
-          <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-4 select-none">
-              <span className="material-symbols-outlined text-primary text-xl">router</span>
-              <h3 className="font-bold text-sm text-[#0F172A]">Prueba de Conectividad (Ping)</h3>
+          <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm relative">
+            <div className="flex items-center justify-between mb-4 select-none">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary text-xl">router</span>
+                <h3 className="font-bold text-sm text-[#0F172A]">Prueba de Conectividad (Ping)</h3>
+              </div>
+              <div className="relative group z-40">
+                <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+                <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 top-full mt-1 right-0 pointer-events-none w-64 text-slate-600 leading-relaxed font-normal normal-case">
+                  <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Prueba de Conectividad (Ping)</div>
+                  <p className="mb-1">Envía paquetes ICMP Echo Request al host o IP objetivo de forma continua. Calcula la latencia de respuesta ida y vuelta (RTT) y porcentaje de pérdidas.</p>
+                </div>
+              </div>
             </div>
 
             {isUsbInterface && (
@@ -1034,28 +1236,47 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                   </div>
                 </div>
               ) : (
-               <div className="bg-white border border-dashed border-[#E2E8F0] rounded-lg p-3 h-[120px] flex items-center justify-center font-sans text-xs italic text-[#64748B] text-center mb-3">
-                  Esperando traza de prueba. Las respuestas se mostrarán de forma continua hasta detener la prueba.
+                <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-4 h-[120px] flex flex-col items-center justify-center text-center mb-3 space-y-1">
+                  <span className="material-symbols-outlined text-slate-400 text-xl">sensors_off</span>
+                  <p className="text-xs font-semibold text-slate-600">
+                    {activeAnalysisId ? 'No se registraron trazas de conectividad (Ping) en esta sesión' : 'Esperando inicio de prueba de conectividad'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {activeAnalysisId ? 'No se ejecutaron sondas ICMP activas en esta captura.' : 'Las respuestas en tiempo real se mostrarán al iniciar la prueba.'}
+                  </p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white border border-[#E2E8F0] p-3 rounded-lg text-center shadow-sm">
                   <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Latencia Promedio</p>
-                  <p className="text-lg font-bold text-primary mt-0.5 font-mono">{pingStats.avgLatency}</p>
+                  <p className="text-lg font-bold text-primary mt-0.5 font-mono">
+                    {pingLogs.length > 0 ? pingStats.avgLatency : 'No registrada'}
+                  </p>
                 </div>
                 <div className="bg-white border border-[#E2E8F0] p-3 rounded-lg text-center shadow-sm">
                   <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Pérdida de Paquetes</p>
-                  <p className="text-lg font-bold text-[#F59E0B] mt-0.5 font-mono">{pingStats.loss}</p>
+                  <p className="text-lg font-bold text-[#F59E0B] mt-0.5 font-mono">
+                    {pingLogs.length > 0 ? pingStats.loss : 'No registrada'}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-4 select-none">
-              <span className="material-symbols-outlined text-primary text-xl">alt_route</span>
-              <h3 className="font-bold text-sm text-[#0F172A]">Traza de Ruta</h3>
+          <div className="col-span-12 md:col-span-6 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm relative">
+            <div className="flex items-center justify-between mb-4 select-none">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary text-xl">alt_route</span>
+                <h3 className="font-bold text-sm text-[#0F172A]">Traza de Ruta</h3>
+              </div>
+              <div className="relative group z-40">
+                <span className="material-symbols-outlined text-[#64748B] text-[18px] cursor-help">info</span>
+                <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 p-3 rounded-xl shadow-xl text-left text-[11px] z-50 top-full mt-1 right-0 pointer-events-none w-64 text-slate-600 leading-relaxed font-normal normal-case">
+                  <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">Traza de Ruta (Traceroute)</div>
+                  <p className="mb-1">Rastrea la secuencia de routers e intermediarios hasta el servidor de destino. Registra el incremento progresivo de tiempo de vida (TTL) para registrar IPs y latencias por cada salto.</p>
+                </div>
+              </div>
             </div>
 
             {isUsbInterface && (
@@ -1079,15 +1300,22 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                 type="button"
                 onClick={handleStartTrace}
                 disabled={traceStatus === 'tracing' || !isMonitoring || isUsbInterface}
-                className="bg-primary text-white font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-sans"
+                className="bg-primary text-[#FFFFFF] font-semibold px-4 py-2 rounded-lg text-xs hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-sans"
               >
                 {traceStatus === 'tracing' ? 'Rastreando' : 'Trazar Ruta'}
               </button>
             </div>
 
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 h-[220px] overflow-y-auto">
+            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4">
+              <div className="flex justify-between text-[11px] font-mono text-[#64748B] mb-3 pb-1 border-b border-[#E2E8F0] select-none">
+                <span>Estado en tiempo real</span>
+                <span className={`font-bold uppercase ${traceStatus === 'tracing' ? 'text-[#F59E0B] animate-pulse' : 'text-[#4F46E5]'}`}>
+                  {traceStatus === 'tracing' ? 'RASTREANDO...' : traceHops.length > 0 ? 'COMPLETADO' : 'LISTO'}
+                </span>
+              </div>
+
               {traceHops.length > 0 ? (
-                <div className="space-y-3 font-mono text-xs">
+                <div className="space-y-3 font-mono text-xs h-[120px] overflow-y-auto mb-3 pr-1">
                   {traceHops.map((hop, i) => (
                     <div key={i} className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
                       <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
@@ -1110,12 +1338,31 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                   )}
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-center">
-                  <p className="text-xs text-[#64748B] italic">
-                    La lista de saltos de visualización de la ruta aparecerá aquí después de iniciar el diagnóstico...
+                <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-4 h-[120px] flex flex-col items-center justify-center text-center mb-3 space-y-1">
+                  <span className="material-symbols-outlined text-slate-400 text-xl">route</span>
+                  <p className="text-xs font-semibold text-slate-600">
+                    {activeAnalysisId ? 'No se registraron saltos de ruta (Traceroute) en esta sesión' : 'Esperando diagnóstico de ruta'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {activeAnalysisId ? 'No se rastrearon intermediarios durante esta captura.' : 'La lista de saltos aparecerá al iniciar el diagnóstico.'}
                   </p>
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white border border-[#E2E8F0] p-3 rounded-lg text-center shadow-sm">
+                  <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Saltos Totales</p>
+                  <p className="text-lg font-bold text-primary mt-0.5 font-mono">
+                    {traceHops.length > 0 ? `${traceHops.length} saltos` : 'No registrada'}
+                  </p>
+                </div>
+                <div className="bg-white border border-[#E2E8F0] p-3 rounded-lg text-center shadow-sm">
+                  <p className="text-[10px] font-mono text-[#64748B] font-bold uppercase select-none">Tiempo Total de Viaje</p>
+                  <p className="text-lg font-bold text-[#4F46E5] mt-0.5 font-mono">
+                    {traceHops.length > 0 ? `${traceHops.reduce((acc, h) => acc + (Number(h.latency) || 0), 0)} ms` : 'No registrada'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1141,15 +1388,15 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           </div>
 
           <div className="overflow-x-auto border border-[#E2E8F0] rounded-xl">
-            <table className="w-full text-left text-xs font-sans">
+            <table className="w-full text-left text-xs font-sans table-fixed">
               <thead className="bg-[#F8FAFC] text-[#64748B] font-bold border-b border-[#E2E8F0]">
                 <tr>
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Tipo</th>
-                  <th className="p-3">IP</th>
-                  <th className="p-3">MAC</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3 text-right">Acciones</th>
+                  <th className="p-3 w-1/4">Nombre</th>
+                  <th className="p-3 w-1/6">Tipo</th>
+                  <th className="p-3 w-1/5">IP</th>
+                  <th className="p-3 w-1/5">MAC</th>
+                  <th className="p-3 w-1/6">Estado</th>
+                  <th className="p-3 text-right w-28">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0]">
@@ -1373,14 +1620,18 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                 })
                 .map(iface => {
                   const id = iface.name.split('.')[0];
-                  let friendlyName = iface.name;
-                  const match = iface.name.match(/\(([^)]+)\)/);
-                  if (match) {
-                    friendlyName = match[1];
-                  } else {
-                    friendlyName = iface.name.replace(/^\d+\.\s*/, '');
+                  let friendlyName = iface.displayName || iface.name;
+                  if (!friendlyName || friendlyName === iface.name) {
+                    const match = iface.name.match(/\(([^)]+)\)/);
+                    if (match) {
+                      friendlyName = match[1];
+                    } else {
+                      friendlyName = iface.name.replace(/^\d+\.\s*/, '');
+                    }
                   }
-                  return <option key={id} value={id}>{id}. {friendlyName}</option>;
+                  const rawName = iface.name.replace(/^\d+\.\s*/, '');
+                  const labelText = (friendlyName && friendlyName !== rawName) ? `${id}. ${friendlyName} — [${rawName}]` : `${id}. ${friendlyName}`;
+                  return <option key={id} value={id}>{labelText}</option>;
                 })}
             </select>
           </div>
@@ -1549,7 +1800,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                     rollingBytesRef.current = [];
                     rollingJitterRef.current = [];
                     // Resetear acumulador de promedios
-                    metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, jitterSum: 0, ticks: 0, jitterTicks: 0 };
+                  metricsAccRef.current = { ppsSum: 0, mbpsSum: 0, lossSum: 0, jitterSum: 0, ticks: 0, jitterTicks: 0 };
                     setSessionAvgMetrics(null);
                     setPacketStream([]);
                     setPacketStats({ total: 0, protocols: {} });
@@ -1557,35 +1808,44 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                     monitoringIntervalRef.current = setInterval(fetchPackets, 1000);
 
                     try {
+                      const reqBody = {
+                        provider: speedTestConfig.provider,
+                        testType: speedTestConfig.testType,
+                        sizeBytes: speedTestConfig.sizeBytes,
+                        interfaceName: interfaceData.nombreInterfaz,
+                        analysisId: activeAnalysisIdRef.current
+                      };
                       const res = await fetch('/api/analysis/active/speedtest', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          provider: speedTestConfig.provider,
-                          testType: speedTestConfig.testType,
-                          sizeBytes: speedTestConfig.sizeBytes,
-                          interfaceName: interfaceData.nombreInterfaz,
-                          // Usar ref en lugar de state para evitar race condition
-                          // cuando el estado de React aún no se ha propagado al closure
-                          analysisId: activeAnalysisIdRef.current
-                        })
+                        body: JSON.stringify(reqBody)
                       });
                       if (res.ok) {
-                        // Detener polling y calcular promedios de la sesión
+                        const resultData = await res.json();
+                        // Detener polling
                         if (monitoringIntervalRef.current) clearInterval(monitoringIntervalRef.current);
                         setIsActiveCapturing(false);
-                        const acc = metricsAccRef.current;
-                        if (acc.ticks > 0) {
-                          setSessionAvgMetrics({
-                            pps: +(acc.ppsSum / acc.ticks).toFixed(2),
-                            mbps: +(acc.mbpsSum / acc.ticks).toFixed(4),
-                            loss: +(acc.lossSum / acc.ticks).toFixed(2),
-                            jitter: +(acc.jitterSum / acc.ticks).toFixed(2)
-                          });
+                        
+                        // Recargar inmediatamente las métricas, distribución de protocolos y paquetes capturados de la sesión
+                        if (activeAnalysisIdRef.current) {
+                          await loadActiveAnalysisDetails(activeAnalysisIdRef.current, false);
                         }
+
                         // Cerrar modal automáticamente al terminar
                         setIsSpeedTestModalOpen(false);
                         setPendingAnalysisAction(null);
+
+                        // Mostrar notificación de éxito con la velocidad medida
+                        Swal.fire({
+                          title: '¡Prueba Activa Completada!',
+                          html: `<div className="text-sm space-y-2">
+                            <p><strong>Tipo de prueba:</strong> ${resultData.testType === 'DOWNLOAD' ? 'Descarga' : 'Subida'}</p>
+                            <p><strong>Velocidad lograda:</strong> <span className="text-xl font-bold text-indigo-600">${resultData.speedMbps} Mbps</span></p>
+                            <p><strong>Duración:</strong> ${resultData.durationMs} ms</p>
+                          </div>`,
+                          icon: 'success',
+                          confirmButtonColor: '#4F46E5'
+                        });
                       } else {
                         const errText = await res.text();
                         // Detener polling si hubo error
@@ -1619,21 +1879,21 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           Flujo de Paquetes (En Vivo)
         </h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                <th className="p-3">ID</th>
-                <th className="p-3">Protocolo</th>
-                <th className="p-3">Fuente</th>
-                <th className="p-3">Destino</th>
-                <th className="p-3">Tamaño</th>
-                <th className="p-3">Info</th>
+                <th className="p-3 w-20">ID</th>
+                <th className="p-3 w-28">Protocolo</th>
+                <th className="p-3 w-36">Fuente</th>
+                <th className="p-3 w-36">Destino</th>
+                <th className="p-3 w-24">Tamaño</th>
+                <th className="p-3 w-auto">Info</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {packetStream.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-400 italic">No hay paquetes capturados en la sesión actual...</td>
+                  <td colSpan={6} className="p-8 text-center text-slate-400 italic">No se detectan paquetes en la red</td>
                 </tr>
               ) : (
                 packetStream.map((pkt, i) => (
@@ -1669,7 +1929,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
             <div key={session.id} className="flex justify-between items-center p-3 border border-[#E2E8F0] rounded-xl hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => handleLoadAnalysis(session)}>
               <div>
                 <div className="font-semibold text-sm text-slate-800">Sesión #{session.id}</div>
-                <div className="text-xs text-slate-500">{session.fechaEjecucion?.replace('T', ' ').substring(0, 19)}</div>
+                <div className="text-xs text-slate-500">{formatDateVE(session.fechaEjecucion)}</div>
               </div>
               <span className="material-symbols-outlined text-primary text-[20px]">chevron_right</span>
             </div>

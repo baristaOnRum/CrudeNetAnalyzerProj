@@ -26,9 +26,17 @@ public class ReportController {
     public ResponseEntity<Report> generateReport(@RequestBody ReportCriteria criteria) {
         Report report = reportService.generateReport(criteria);
         
+        String humanReportType = "General de Análisis de Red";
+        if (criteria != null && criteria.getReportType() != null) {
+            String rt = criteria.getReportType().toUpperCase();
+            if (rt.contains("PDF")) humanReportType = "Documento PDF";
+            else if (rt.contains("CSV")) humanReportType = "Archivo de Datos CSV";
+            else humanReportType = criteria.getReportType();
+        }
+
         AuditDto audit = new AuditDto();
-        audit.setNombreAuditoria("Emisión de Reporte");
-        audit.setDetalleCambio("Se emitió un reporte en formato " + criteria.getReportType());
+        audit.setNombreAuditoria("Generación e Impresión de Reporte");
+        audit.setDetalleCambio("Se generó y emitió exitosamente un reporte técnico de diagnóstico en formato " + humanReportType + ".");
         audit.setFechaHora(LocalDateTime.now());
         auditService.registerAudit(audit);
         
