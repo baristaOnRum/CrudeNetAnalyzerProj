@@ -131,7 +131,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
           if (activeResp.status === 200) {
             const activeData = await activeResp.json();
             if (activeData && activeData.nombreInterfaz) {
-              const activeId = activeData.idAnalisis;
+              const activeId = activeAnalysisIdRef.current || propAnalysisId || activeData.idAnalisis;
               setInterfaceData((prev: any) => ({
                 ...prev,
                 nombreInterfaz: activeData.nombreInterfaz,
@@ -443,12 +443,12 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
 
   // Auto-fetch active/current session data on page reload / navigation back to Análisis
   useEffect(() => {
-    const currentId = activeAnalysisId || propAnalysisId || interfaceData.idAnalisis;
+    const currentId = activeAnalysisId || propAnalysisId;
     if (currentId && hasAutoLoadedRef.current !== currentId) {
       hasAutoLoadedRef.current = currentId;
       loadActiveAnalysisDetails(currentId, false);
     }
-  }, [activeAnalysisId, propAnalysisId, interfaceData.idAnalisis]);
+  }, [activeAnalysisId, propAnalysisId]);
 
   const fetchPackets = async () => {
     if (isFetchingRef.current) return;
@@ -1629,8 +1629,7 @@ export const NetworkAnalyzer: React.FC<NetworkAnalyzerProps> = ({ activeAnalysis
                       friendlyName = iface.name.replace(/^\d+\.\s*/, '');
                     }
                   }
-                  const rawName = iface.name.replace(/^\d+\.\s*/, '');
-                  const labelText = (friendlyName && friendlyName !== rawName) ? `${id}. ${friendlyName} — [${rawName}]` : `${id}. ${friendlyName}`;
+                  const labelText = friendlyName || rawName;
                   return <option key={id} value={id}>{labelText}</option>;
                 })}
             </select>

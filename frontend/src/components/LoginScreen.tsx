@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 import { DatabaseSettings } from './DatabaseSettings';
 import { Modal } from './common/Modal';
+import logoImg from '../assets/Picture1.png';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { sourceId: string; role: string; token: string }) => void;
@@ -31,6 +32,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
 
     setStatus('connecting');
+    Swal.fire({
+      title: 'Iniciando sesión...',
+      text: 'Verificando credenciales de acceso...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
 
     setTimeout(async () => {
       try {
@@ -45,6 +54,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           const role = sourceId === 'Invitado' ? 'OBSERVADOR' : data.role;
           const token = data.token; // Guardar el token validado desde el backend
           setStatus('success');
+          Swal.close();
           setTimeout(() => {
             onLoginSuccess({ sourceId, role, token });
           }, 600);
@@ -77,6 +87,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       <main className="w-full max-w-[420px] relative z-10 flex flex-col justify-center">
         {/* Brand Header */}
         <div className="mb-8 text-center">
+          <img src={logoImg} alt="PGP Telecom Logo" className="h-16 mx-auto mb-3 object-contain" />
           <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] font-sans flex items-center justify-center gap-2">
             <span className="material-symbols-outlined text-primary text-3xl">shield_lock</span>
             Sistema de Asistencia al Monitoreo y Auditoria
@@ -93,7 +104,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             {/* System Identifier */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-sans font-bold text-[#64748B] uppercase flex justify-between tracking-wider" htmlFor="source_id">
-                <span>Usuario <span className="text-red-500 text-[10px] font-semibold normal-case ml-1">* (obligatorio)</span></span>
+                <span>Usuario <span className="text-red-500 text-[10px] font-semibold normal-case ml-1">*</span></span>
               </label>
               <input 
                 id="source_id"
@@ -111,7 +122,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             {/* Access Key */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-sans font-bold text-[#64748B] uppercase flex justify-between tracking-wider" htmlFor="password">
-                <span>Contraseña <span className="text-red-500 text-[10px] font-semibold normal-case ml-1">* (obligatorio)</span></span>
+                <span>Contraseña <span className="text-red-500 text-[10px] font-semibold normal-case ml-1">*</span></span>
               </label>
               <input 
                 id="password"

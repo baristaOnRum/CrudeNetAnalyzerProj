@@ -326,8 +326,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ currentUserRole }) => 
           fields={[
             { label: 'Identificador Unico', value: `#${(selectedUser as any).id}` },
             { label: 'Nombre Completo', value: selectedUser.name },
-            { label: 'Rol de Seguridad', value: selectedUser.role },
-            { label: 'Estado de Cuenta', value: 'ACTIVO / ACCESO HABILITADO' }
+            { label: 'Rol de Seguridad', value: selectedUser.role }
           ]}
           actions={currentUserRole.toUpperCase().includes('ADMINISTRADOR') ? [
             {

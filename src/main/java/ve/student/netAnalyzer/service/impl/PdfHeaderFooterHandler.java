@@ -70,32 +70,40 @@ public class PdfHeaderFooterHandler extends PdfPageEventHelper {
         Color textColor = new Color(100, 116, 139);    // Slate 500
 
         // --- 1. MEMBRETE / HEADER ---
-        // Document Title (Left aligned - WITHOUT "NETANALYZER | ")
-        cb.setFontAndSize(font, 10);
+        // Company Name Header
+        cb.setFontAndSize(font, 11);
         cb.setColorFill(titleColor);
         cb.beginText();
-        cb.setTextMatrix(leftMargin, topMargin + 20);
-        cb.showText(documentTitle.toUpperCase());
+        cb.setTextMatrix(leftMargin, topMargin + 24);
+        cb.showText("PGP TELECOM C.A.");
         cb.endText();
 
-        // Generation Date (Left aligned under title)
-        String dateStr = "Emisión: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        // Company RIF Subtitle
+        cb.setFontAndSize(font, 8.5f);
+        cb.setColorFill(textColor);
+        cb.beginText();
+        cb.setTextMatrix(leftMargin, topMargin + 13);
+        cb.showText("RIF: J-504613460");
+        cb.endText();
+
+        // Document Title & Generation Date
+        String subHeaderStr = documentTitle.toUpperCase() + "  |  Emisión: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
         cb.setFontAndSize(font, 8);
         cb.setColorFill(textColor);
         cb.beginText();
-        cb.setTextMatrix(leftMargin, topMargin + 8);
-        cb.showText(dateStr);
+        cb.setTextMatrix(leftMargin, topMargin + 2);
+        cb.showText(subHeaderStr);
         cb.endText();
 
         // Company Logo (Top Right corner with correct natural aspect ratio)
         if (logoImage != null) {
             try {
-                float targetHeight = 18f;
+                float targetHeight = 22f;
                 float aspectRatio = logoImage.getWidth() / logoImage.getHeight();
                 float targetWidth = targetHeight * aspectRatio;
                 
                 logoImage.scaleAbsolute(targetWidth, targetHeight);
-                logoImage.setAbsolutePosition(rightMargin - targetWidth, topMargin + 6);
+                logoImage.setAbsolutePosition(rightMargin - targetWidth, topMargin + 4);
                 cb.addImage(logoImage);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -105,14 +113,14 @@ public class PdfHeaderFooterHandler extends PdfPageEventHelper {
         // Header Divider Line
         cb.setLineWidth(0.75f);
         cb.setColorStroke(lineColor);
-        cb.moveTo(leftMargin, topMargin + 2);
-        cb.lineTo(rightMargin, topMargin + 2);
+        cb.moveTo(leftMargin, topMargin - 4);
+        cb.lineTo(rightMargin, topMargin - 4);
         cb.stroke();
 
         // --- 2. PIE DE PÁGINA / FOOTER ---
         // Blue Footer Banner
-        float bannerHeight = 26f;
-        float bannerY = bottomMargin - 28f;
+        float bannerHeight = 34f;
+        float bannerY = bottomMargin - 34f;
         
         cb.setColorFill(bannerBg);
         cb.rectangle(leftMargin, bannerY, rightMargin - leftMargin, bannerHeight);
@@ -122,20 +130,27 @@ public class PdfHeaderFooterHandler extends PdfPageEventHelper {
         cb.setFontAndSize(font, 7.5f);
         cb.setColorFill(Color.WHITE);
 
+        String notice = "Generado mediante el Sistema de Asistencia al Monitoreo y Auditoría";
         String line1 = "Bolívar - El Tigre - Maturín    0291-6441738 / 0412-6747686";
         String line2 = "Barcelona - Cumaná - Margarita    0412-5747286";
         
+        float noticeWidth = font.getWidthPoint(notice, 7.5f);
         float line1Width = font.getWidthPoint(line1, 7.5f);
         float line2Width = font.getWidthPoint(line2, 7.5f);
         float centerX = leftMargin + (rightMargin - leftMargin) / 2f;
 
         cb.beginText();
-        cb.setTextMatrix(centerX - (line1Width / 2f), bannerY + 14f);
+        cb.setTextMatrix(centerX - (noticeWidth / 2f), bannerY + 23f);
+        cb.showText(notice);
+        cb.endText();
+
+        cb.beginText();
+        cb.setTextMatrix(centerX - (line1Width / 2f), bannerY + 13f);
         cb.showText(line1);
         cb.endText();
 
         cb.beginText();
-        cb.setTextMatrix(centerX - (line2Width / 2f), bannerY + 4f);
+        cb.setTextMatrix(centerX - (line2Width / 2f), bannerY + 3f);
         cb.showText(line2);
         cb.endText();
 

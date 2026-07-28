@@ -64,17 +64,23 @@ public class AuditExporter {
 
     public static byte[] exportMultipleToPdf(List<Audit> audits, String titleText) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            Document document = new Document(com.lowagie.text.PageSize.A4.rotate(), 20, 20, 20, 20);
-            PdfWriter.getInstance(document, baos);
+            Document document = new Document(com.lowagie.text.PageSize.A4.rotate(), 36, 36, 54, 54);
+            PdfWriter writer = PdfWriter.getInstance(document, baos);
+            writer.setPageEvent(new PdfHeaderFooterHandler("REPORTES DE AUDITORÍA DEL SISTEMA"));
             document.open();
             
             Paragraph title = new Paragraph(titleText != null ? titleText : "Reporte Global de Auditorías", TITLE_FONT);
-            title.setSpacingAfter(12f);
+            title.setSpacingAfter(4f);
             document.add(title);
+
+            Paragraph subtitle = new Paragraph("Total de registros de auditoría: " + (audits != null ? audits.size() : 0), SUBTITLE_FONT);
+            subtitle.setSpacingAfter(14f);
+            document.add(subtitle);
 
             PdfPTable table = new PdfPTable(5);
             table.setWidthPercentage(100);
             table.setWidths(new float[]{1.8f, 1.5f, 2.0f, 1.2f, 3.5f});
+            table.setHeaderRows(1);
 
             addTableHeader(table, "ID Sesión");
             addTableHeader(table, "Fecha y Hora");
@@ -82,13 +88,15 @@ public class AuditExporter {
             addTableHeader(table, "Usuario");
             addTableHeader(table, "Detalle del Cambio");
 
-            for (Audit audit : audits) {
-                String rowSessId = audit.getIdSesion() != null ? audit.getIdSesion().split("#")[0] : "N/A";
-                table.addCell(createCell(rowSessId));
-                table.addCell(createCell(audit.getFechaHora() != null ? audit.getFechaHora().toString().replace("T", " ") : "N/A"));
-                table.addCell(createCell(audit.getNombreAuditoria() != null ? audit.getNombreAuditoria() : "N/A"));
-                table.addCell(createCell(audit.getUsuario() != null ? audit.getUsuario().getNombre() : "Sistema"));
-                table.addCell(createCell(audit.getDetalleCambio() != null ? audit.getDetalleCambio() : ""));
+            if (audits != null) {
+                for (Audit audit : audits) {
+                    String rowSessId = audit.getIdSesion() != null ? audit.getIdSesion().split("#")[0] : "N/A";
+                    table.addCell(createCell(rowSessId));
+                    table.addCell(createCell(audit.getFechaHora() != null ? audit.getFechaHora().toString().replace("T", " ") : "N/A"));
+                    table.addCell(createCell(audit.getNombreAuditoria() != null ? audit.getNombreAuditoria() : "N/A"));
+                    table.addCell(createCell(audit.getUsuario() != null ? audit.getUsuario().getNombre() : "Sistema"));
+                    table.addCell(createCell(audit.getDetalleCambio() != null ? audit.getDetalleCambio() : ""));
+                }
             }
 
             document.add(table);
@@ -102,7 +110,7 @@ public class AuditExporter {
 
     private static void addTableHeader(PdfPTable table, String text) {
         PdfPCell cell = new PdfPCell(new Paragraph(text, HEADER_FONT));
-        cell.setBackgroundColor(new Color(15, 23, 42)); // Slate 900
+        cell.setBackgroundColor(new Color(29, 78, 216)); // Royal Blue #1D4ED8
         cell.setPadding(6f);
         table.addCell(cell);
     }

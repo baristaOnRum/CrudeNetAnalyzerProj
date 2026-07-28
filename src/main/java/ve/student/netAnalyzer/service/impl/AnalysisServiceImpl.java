@@ -48,8 +48,11 @@ public class AnalysisServiceImpl implements AnalysisService {
             // Detener cualquier captura previa si existe
             packetCaptureService.stopCapture();
             
-            // Crear el registro en la base de datos de AnalisisRed
-            AnalisisRed ar = registerAnalysis(new AnalysisDto());
+            // Usar el análisis activo creado previamente o crear uno nuevo si no existe
+            AnalisisRed ar = sessionManagerService.getActiveAnalysis();
+            if (ar == null) {
+                ar = registerAnalysis(new AnalysisDto());
+            }
             Long analysisId = ar.getId().longValue();
             
             // Iniciar la captura en background vinculando el ID de análisis
@@ -79,7 +82,11 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public InterfaceDto getActiveInterface() {
-        return sessionManagerService.getActiveInterface();
+        InterfaceDto active = sessionManagerService.getActiveInterface();
+        if (active != null && sessionManagerService.getActiveAnalysis() != null && sessionManagerService.getActiveAnalysis().getId() != null) {
+            active.setIdAnalisis(sessionManagerService.getActiveAnalysis().getId().longValue());
+        }
+        return active;
     }
 
     @Override
@@ -165,6 +172,12 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public void stopCapture() {
+        AnalisisRed active = sessionManagerService.getActiveAnalysis();
+        if (active != null && active.getFechaEjecucion() != null) {
+            long seconds = java.time.Duration.between(active.getFechaEjecucion(), LocalDateTime.now()).getSeconds();
+            active.setDuracionAnalisis((int) Math.max(1, seconds));
+            repository.save(active);
+        }
         packetCaptureService.stopCapture();
     }
 

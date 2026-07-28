@@ -257,31 +257,36 @@ export const ReportsConsole: React.FC = () => {
                   
                   // 1. Membrete (Header)
                   pdf.setFont('helvetica', 'bold');
-                  pdf.setFontSize(10);
+                  pdf.setFontSize(11);
                   pdf.setTextColor(15, 23, 42); // Slate 900
-                  pdf.text("REPORTE ESTADÍSTICO DE ANÁLISIS", marginX, 12);
+                  pdf.text("PGP TELECOM C.A.", marginX, 10);
                   
-                  const dateStr = "Emisión: " + formatEmissionDateVE();
                   pdf.setFont('helvetica', 'normal');
-                  pdf.setFontSize(8);
+                  pdf.setFontSize(8.5);
                   pdf.setTextColor(100, 116, 139);
-                  pdf.text(dateStr, marginX, 17);
+                  pdf.text("RIF: J-504613460", marginX, 14.5);
+
+                  const ifaceName = (selectedSession && (selectedSession.nombreInterfaz || selectedSession.dispositivoRed?.name)) || "Predeterminada";
+                  const reportTitle = (reportConfig && reportConfig.templateName) ? reportConfig.templateName.toUpperCase() : "REPORTE ESTADÍSTICO DE ANÁLISIS DE RED";
+                  const dateStr = `${reportTitle}  |  Emisión: ${formatEmissionDateVE()}  |  Interfaz: ${ifaceName}`;
+                  pdf.setFontSize(7.5);
+                  pdf.text(dateStr, marginX, 18.5);
 
                   // Company Logo (Top Right corner with correct natural 5.63:1 aspect ratio)
-                  const logoHeight = 7.5; // 7.5mm height
-                  const logoWidth = logoHeight * (259.0 / 46.0); // ~42.23mm width
-                  pdf.addImage(logoImg, 'PNG', pdfWidth - marginX - logoWidth, 9, logoWidth, logoHeight);
+                  const logoHeight = 8.5; // 8.5mm height
+                  const logoWidth = logoHeight * (259.0 / 46.0); // ~47.8mm width
+                  pdf.addImage(logoImg, 'PNG', pdfWidth - marginX - logoWidth, 8, logoWidth, logoHeight);
                   
                   pdf.setDrawColor(226, 232, 240); // Slate 200
                   pdf.setLineWidth(0.3);
-                  pdf.line(marginX, 20, pdfWidth - marginX, 20);
+                  pdf.line(marginX, 21, pdfWidth - marginX, 21);
 
                   // 2. Main Content Image
                   pdf.addImage(dataUrl, 'PNG', marginX, marginTop, availableWidth, contentHeight);
 
                   // 3. Pie de página (Footer)
-                  const bannerHeight = 10; // 10mm banner
-                  const bannerY = pdfPageHeight - 16;
+                  const bannerHeight = 12.5;
+                  const bannerY = pdfPageHeight - 17.5;
                   
                   // Blue Footer Banner
                   pdf.setFillColor(29, 78, 216); // Royal Blue #1d4ed8
@@ -289,20 +294,22 @@ export const ReportsConsole: React.FC = () => {
 
                   // Contact text inside banner
                   pdf.setFont('helvetica', 'normal');
-                  pdf.setFontSize(7.5);
+                  pdf.setFontSize(7.2);
                   pdf.setTextColor(255, 255, 255);
 
+                  const notice = "Generado mediante el Sistema de Asistencia al Monitoreo y Auditoría";
                   const line1 = "Bolívar - El Tigre - Maturín   0291-6441738 / 0412-6747686";
                   const line2 = "Barcelona - Cumaná - Margarita   0412-5747286";
 
-                  pdf.text(line1, pdfWidth / 2, bannerY + 4, { align: 'center' });
-                  pdf.text(line2, pdfWidth / 2, bannerY + 8, { align: 'center' });
+                  pdf.text(notice, pdfWidth / 2, bannerY + 3.5, { align: 'center' });
+                  pdf.text(line1, pdfWidth / 2, bannerY + 7.2, { align: 'center' });
+                  pdf.text(line2, pdfWidth / 2, bannerY + 10.8, { align: 'center' });
 
                   // Page Numbering "Página 1 de 1" below banner
                   pdf.setFontSize(8);
                   pdf.setTextColor(100, 116, 139);
                   const pageStr = "Página 1 de 1";
-                  pdf.text(pageStr, pdfWidth - marginX - pdf.getTextWidth(pageStr), pdfPageHeight - 3);
+                  pdf.text(pageStr, pdfWidth - marginX - pdf.getTextWidth(pageStr), pdfPageHeight - 2);
 
                   pdf.save(`Reporte_Estadistico_${id}_${Date.now()}.pdf`);
                   
@@ -922,7 +929,18 @@ export const ReportsConsole: React.FC = () => {
             </div>
           )}
           
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-4">
+          <div className="flex justify-between items-center gap-2 pt-4 border-t border-slate-100 mt-4">
+             <button
+                onClick={() => {
+                  setSelectedSession(null);
+                  setIsConfigModalOpen(true);
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all"
+             >
+               <span className="material-symbols-outlined text-sm">arrow_back</span>
+               Regresar a Selección de Plantilla
+             </button>
+
              <button
                 onClick={() => {
                   handleGenerateReport(selectedSession.id);

@@ -185,7 +185,7 @@ public class ReportExporter {
 
     private static void addTableHeader(PdfPTable table, String text) {
         PdfPCell cell = new PdfPCell(new Paragraph(text, HEADER_FONT));
-        cell.setBackgroundColor(new Color(15, 23, 42));
+        cell.setBackgroundColor(new Color(29, 78, 216)); // Royal Blue #1D4ED8
         cell.setPadding(6f);
         table.addCell(cell);
     }

@@ -93,7 +93,7 @@ public class PacketExporter {
 
     private static void addTableHeader(PdfPTable table, String text) {
         PdfPCell cell = new PdfPCell(new Paragraph(text, HEADER_FONT));
-        cell.setBackgroundColor(new Color(15, 23, 42)); // Slate 900
+        cell.setBackgroundColor(new Color(29, 78, 216)); // Royal Blue #1D4ED8
         cell.setPadding(5f);
         table.addCell(cell);
     }
